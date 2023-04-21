@@ -1,10 +1,16 @@
 use crate::config::currencies::CURRENCIES;
 use reqwest::Client;
+use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
-use tokio;
 
+#[derive(Debug, Serialize)]
 pub struct Currencies {
-    data: Map<String, Value>,
+    pub data: Map<String, Value>,
+}
+
+#[derive(Deserialize, Debug)]
+struct APIResponse {
+    zilliqa: Map<String, Value>,
 }
 
 impl Currencies {
@@ -18,21 +24,22 @@ impl Currencies {
         Currencies { data }
     }
 
-    pub fn update(&self) {}
+    pub fn serializatio(&self) -> String {
+        serde_json::to_string(&self).unwrap()
+    }
 
-    async fn coingecko(&self) -> Result<(), reqwest::Error> {
+    pub async fn update(&mut self) {
+        self.data = self.coingecko().await.unwrap();
+    }
+
+    async fn coingecko(&self) -> Result<Map<String, Value>, reqwest::Error> {
         let client = Client::new();
         let params = format!("?ids=zilliqa&vs_currencies={:?}", CURRENCIES.join(","));
         let url = format!("https://api.coingecko.com/api/v3/simple/price{}", params);
         let response = client.get(url).send().await?;
 
-        if response.status().is_success() {
-            let body = response.json().await?;
-            println!("Response body: {:?}", body);
-        } else {
-            println!("Error: {}", response.status());
-        }
+        let body: APIResponse = response.json().await?;
 
-        Ok(())
+        Ok(body.zilliqa)
     }
 }
