@@ -1,13 +1,13 @@
-use data_rs::models::currencies::Currencies;
+// use data_rs::models::currencies::Currencies;
+use data_rs::models::meta::Meta;
 use tokio;
 
 #[tokio::main]
 async fn main() {
-    let mut rates = Currencies::new();
+    // let rates = Currencies::new();
+    let meta = Meta::new();
 
-    dbg!(rates.serializatio());
+    meta.update().await;
 
-    rates.update().await;
-
-    dbg!(rates.serializatio());
+    // rates.update().await;
 }

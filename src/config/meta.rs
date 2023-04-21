@@ -8,3 +8,6 @@ pub const TOKENS_EXCEPTIONS: [[&str; 2]; 2] = [
         "zil1zu72vac254htqpg3mtywdcfm84l3dfd9qzww8t",
     ],
 ];
+
+pub const CRYPTO_META_URL: &str =
+    "https://raw.githubusercontent.com/Ashlar/cryptometa/master/src/full.json";
