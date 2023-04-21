@@ -2,16 +2,18 @@ use std::u8;
 
 use crate::config::meta::{CRYPTO_META_URL, TOKENS_EXCEPTIONS};
 use reqwest::Client;
+use serde::Serialize;
 use serde_json::{json, Map, Value};
 
-#[derive(Debug)]
-struct Token {
-    bech32: String,
-    score: u8,
+#[derive(Debug, Serialize)]
+pub struct Token {
+    pub bech32: String,
+    pub score: u8,
 }
 
+#[derive(Debug)]
 pub struct Meta {
-    list: Vec<Token>,
+    pub list: Vec<Token>,
 }
 
 impl Meta {
@@ -20,15 +22,18 @@ impl Meta {
         Meta { list }
     }
 
-    pub async fn update(&self) {
+    pub async fn update(&mut self) {
         match self.fetch().await {
-            Ok(data) => {
-                dbg!("{:?}", data);
-
+            Ok(list) => {
+                self.list = list;
                 ()
             }
             Err(_) => (),
         };
+    }
+
+    pub fn serializatio(&self) -> String {
+        serde_json::to_string(&self.list).unwrap()
     }
 
     async fn fetch(&self) -> Result<Vec<Token>, reqwest::Error> {

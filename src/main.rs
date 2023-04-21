@@ -5,9 +5,11 @@ use tokio;
 #[tokio::main]
 async fn main() {
     // let rates = Currencies::new();
-    let meta = Meta::new();
+    let mut meta = Meta::new();
 
     meta.update().await;
+
+    dbg!(meta.serializatio());
 
     // rates.update().await;
 }
