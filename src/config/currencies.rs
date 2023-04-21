@@ -11,3 +11,5 @@ pub const CURRENCIES: [&str; 140] = [
     "GYD", "BIF", "KYD", "MVR", "LSL", "LRD", "CVE", "DJF", "SCR", "SOS", "GMD", "KMF", "STD",
     "BTC", "XRP", "AUD", "BGN", "JOD", "GBP", "ETH", "EUR", "LTC", "NZD",
 ];
+pub const CURRENCIES_KEY: &str = "RATES";
+pub const CURRENCIES_DATABASE: &str = "RATES_DATABASE";

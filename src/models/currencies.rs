@@ -1,11 +1,13 @@
-use crate::config::currencies::CURRENCIES;
+use crate::config::currencies::{CURRENCIES, CURRENCIES_DATABASE, CURRENCIES_KEY};
 use reqwest::Client;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_json::{Map, Value};
+use sled::Db;
 
-#[derive(Debug, Serialize)]
+#[derive(Debug)]
 pub struct Currencies {
     pub data: Map<String, Value>,
+    db: Db,
 }
 
 #[derive(Deserialize, Debug)]
@@ -15,21 +17,36 @@ struct APIResponse {
 
 impl Currencies {
     pub fn new() -> Self {
-        let mut data = serde_json::Map::new();
+        let db = sled::open(CURRENCIES_DATABASE).expect("Cannot open database.");
+        let data = match db.get(CURRENCIES_KEY).unwrap() {
+            Some(cache) => {
+                let mb_json = std::str::from_utf8(&cache).unwrap_or("{}");
 
-        for currency in CURRENCIES {
-            data.insert(currency.to_lowercase().to_owned(), Value::from(0.0));
-        }
+                serde_json::from_str(mb_json).unwrap_or(Map::new())
+            }
+            None => {
+                let mut data = Map::new();
 
-        Currencies { data }
+                for currency in CURRENCIES {
+                    data.insert(currency.to_lowercase().to_owned(), Value::from(0.0));
+                }
+
+                data
+            }
+        };
+
+        Currencies { data, db }
     }
 
     pub fn serializatio(&self) -> String {
-        serde_json::to_string(&self).unwrap()
+        serde_json::to_string(&self.data).unwrap()
     }
 
     pub async fn update(&mut self) {
         self.data = self.coingecko().await.unwrap();
+        self.db
+            .insert(CURRENCIES_KEY, self.serializatio().as_bytes())
+            .expect("cannot insert");
     }
 
     async fn coingecko(&self) -> Result<Map<String, Value>, reqwest::Error> {

@@ -5,6 +5,8 @@ use tokio;
 async fn main() {
     let mut rates = Currencies::new();
 
+    dbg!(rates.serializatio());
+
     rates.update().await;
 
     dbg!(rates.serializatio());
