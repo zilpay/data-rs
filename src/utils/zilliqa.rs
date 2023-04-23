@@ -1,18 +1,27 @@
-use crate::config::zilliqa::{RPCMethod, PROVIDERS, RPC_METHODS};
-use reqwest::header::HeaderValue;
+use crate::config::zilliqa::PROVIDERS;
+use reqwest::header::{HeaderMap, CONTENT_TYPE};
 use reqwest::Client;
-use serde::Serialize;
-use serde_json::{json, Map, Value};
+use serde::de::DeserializeOwned;
+use serde::{Deserialize, Serialize};
 use std::io;
 
-#[derive(Serialize)]
-pub struct JsonBody {
-    pub id: u8,
+#[derive(Serialize, Debug)]
+pub struct JsonBodyReq {
+    pub id: String,
     pub jsonrpc: String,
     pub method: String,
     pub params: Vec<String>,
 }
 
+#[derive(Deserialize, Debug)]
+pub struct JsonBodyRes<T> {
+    pub id: String,
+    pub jsonrpc: String,
+    pub result: Option<T>,
+    pub error: Option<String>,
+}
+
+#[derive(Debug)]
 pub struct Zilliqa {
     providers: Vec<String>,
 }
@@ -32,36 +41,49 @@ impl Zilliqa {
         self.providers.extend(urls);
     }
 
-    pub async fn fetch(&self, bodies: Vec<JsonBody>) -> Result<Map<String, Value>, io::Error> {
+    pub async fn fetch<T: DeserializeOwned>(
+        &self,
+        bodies: Vec<JsonBodyReq>,
+    ) -> Result<Vec<JsonBodyRes<T>>, io::Error> {
         let client = Client::new();
         let custom_error = std::io::Error::new(std::io::ErrorKind::Other, "Providers is down");
-        let content_type = HeaderValue::from_static("application/json");
-        let json_str = serde_json::to_string(&bodies)?;
 
         for provider in self.providers.iter() {
-            let request_builder = client.post(provider);
-            let request_builder = request_builder.header("Content-Type", &content_type);
-            let request_builder = request_builder.json(&json_str);
+            let mut headers = HeaderMap::new();
 
-            let response = match request_builder.send().await {
+            headers.insert(CONTENT_TYPE, "application/json".parse().unwrap());
+
+            let response = client
+                .post(provider)
+                .headers(headers)
+                .json(&bodies)
+                .send()
+                .await;
+            let response = match response {
                 Ok(res) => res,
-                Err(_) => continue,
+                Err(e) => {
+                    println!("{:?}", e);
+                    continue;
+                }
             };
 
             match response.json().await {
-                Ok(b) => return Ok(b),
-                Err(_) => continue,
-            };
+                Ok(res) => return Ok(res),
+                Err(e) => {
+                    println!("{:?}", e);
+                    continue;
+                }
+            }
         }
 
         Err(custom_error)
     }
 
-    pub fn build_body(&self, method: &str, params: Vec<String>) -> JsonBody {
-        let id = 1;
+    pub fn build_body(&self, method: &str, params: Vec<String>) -> JsonBodyReq {
+        let id = String::from("1");
         let jsonrpc = String::from("2.0");
 
-        JsonBody {
+        JsonBodyReq {
             params,
             id,
             jsonrpc,
