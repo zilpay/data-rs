@@ -3,6 +3,7 @@ pub const PROVIDERS: [&str; 3] = [
     "https://zilliqa.avely.fi/api",
     "https://api.zilliqa.com",
 ];
+pub const CHARSET: &str = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
 
 pub struct RPCMethod {
     // Network-related methods
