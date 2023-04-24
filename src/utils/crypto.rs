@@ -1,4 +1,5 @@
-use crate::config::zilliqa::CHARSET;
+use crate::config::zilliqa::{CHARSET, HRP};
+use sha3::{Digest, Keccak256};
 
 pub const GENERATOR: [u32; 5] = [0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3];
 
@@ -154,6 +155,24 @@ pub fn convert_bits(data: &Vec<u8>, from_width: u32, to_width: u32, pad: bool) -
     Some(ret)
 }
 
+pub fn from_bech32_address(address: &str) -> Option<Vec<u8>> {
+    let (hrp, data) = match decode(address) {
+        Some(addr) => addr,
+        None => return None,
+    };
+
+    if hrp != HRP {
+        return None;
+    }
+
+    let buf = match convert_bits(&data, 5, 8, false) {
+        Some(buf) => buf,
+        None => return None,
+    };
+
+    Some(buf)
+}
+
 #[test]
 fn test_polymod() {
     let bytes: [u8; 16] = [
@@ -212,4 +231,13 @@ fn test_decode() {
         hex::encode(data),
         "0e1e091a111a060013140c091a130a020313121b181619160e11121618161601"
     );
+}
+
+#[test]
+fn test_from_bech32_address() {
+    let bech32 = "zil1w7f636xqn5vf6n2zrnjmckekw3jkckkpyrd6z8";
+    let base16_buff = from_bech32_address(bech32).unwrap();
+    let base16 = hex::encode(base16_buff);
+
+    assert_eq!(base16, "7793a8e8c09d189d4d421ce5bc5b3674656c5ac1");
 }
