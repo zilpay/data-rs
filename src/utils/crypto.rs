@@ -1,5 +1,4 @@
 use crate::config::zilliqa::{CHARSET, HRP};
-use sha3::{Digest, Keccak256};
 
 pub const GENERATOR: [u32; 5] = [0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3];
 
