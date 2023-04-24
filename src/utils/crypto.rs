@@ -71,6 +71,40 @@ pub fn encode(hrp: &str, data: &Vec<u8>) -> String {
     ret
 }
 
+pub fn convert_bits(data: &Vec<u8>, from_width: u32, to_width: u32, pad: bool) -> Option<Vec<u8>> {
+    let mut acc: u32 = 0;
+    let mut bits: u32 = 0;
+    let mut ret = Vec::new();
+    let maxv = (1 << to_width) - 1;
+
+    assert!(from_width < u32::MAX);
+    assert!(to_width < u32::MAX);
+
+    for value in data {
+        if (*value as u32) >> from_width != 0 {
+            return None;
+        }
+
+        acc = (acc << from_width) | (*value as u32);
+        bits += from_width;
+
+        while bits >= to_width {
+            bits -= to_width;
+            ret.push(((acc >> bits) & maxv) as u8);
+        }
+    }
+
+    if pad {
+        if bits > 0 {
+            ret.push(((acc << (to_width - bits)) & maxv) as u8);
+        }
+    } else if bits >= from_width || (acc << (to_width - bits)) & maxv != 0 {
+        return None;
+    }
+
+    Some(ret)
+}
+
 #[test]
 fn test_polymod() {
     let bytes: [u8; 16] = [
@@ -108,4 +142,13 @@ fn test_encode() {
     let should = "test1qep0uve";
 
     assert_eq!(should, res);
+}
+
+#[test]
+fn test_convert_bits() {
+    let byte_vec = hex::decode("7793a8e8c09d189d4d421ce5bc5b3674656c5ac1").unwrap();
+    let addr_bz = convert_bits(&byte_vec, 8, 5, true).unwrap();
+    let shoud = "0e1e091a111a060013140c091a130a020313121b181619160e11121618161601";
+
+    assert_eq!(hex::encode(addr_bz), shoud);
 }

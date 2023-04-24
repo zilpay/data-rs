@@ -4,7 +4,7 @@ pub const PROVIDERS: [&str; 3] = [
     "https://api.zilliqa.com",
 ];
 pub const CHARSET: &str = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
-
+pub const HRP: &str = "zil";
 pub struct RPCMethod {
     // Network-related methods
     pub get_network_id: &'static str,
