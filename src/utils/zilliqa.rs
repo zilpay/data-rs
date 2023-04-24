@@ -15,10 +15,7 @@ pub struct JsonBodyReq {
 
 #[derive(Deserialize, Debug)]
 pub struct JsonBodyRes<T> {
-    pub id: String,
-    pub jsonrpc: String,
     pub result: Option<T>,
-    pub error: Option<String>,
 }
 
 #[derive(Debug)]
