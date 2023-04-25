@@ -10,6 +10,7 @@ use crate::{
         zilliqa::{JsonBodyReq, JsonBodyRes, Zilliqa},
     },
 };
+use log::{error, info};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
@@ -38,29 +39,42 @@ struct ContractInit {
 pub struct Meta {
     pub list: Vec<Token>,
     db: Db,
+    app_name: &'static str,
 }
 
 impl Meta {
     pub fn new() -> Self {
+        let app_name = "META";
         let db = sled::open(META_DATABASE).expect("Cannot meta open database.");
         let list = match db.get(META_KEY) {
             Ok(mb_cache) => {
                 let cache = mb_cache.unwrap_or(IVec::default());
                 let mb_json = std::str::from_utf8(&cache).unwrap();
+                let list = serde_json::from_str(mb_json).unwrap_or(Vec::new());
 
-                serde_json::from_str(mb_json).unwrap_or(Vec::new())
+                info!("{app_name}: loaded from cache {}", list.len());
+
+                list
             }
-            Err(_) => Vec::new(),
+            Err(_) => {
+                error!("{app_name}: fail to load cache!");
+
+                Vec::new()
+            }
         };
 
-        Meta { list, db }
+        Meta { list, db, app_name }
     }
 
     pub async fn update(&mut self, zilliqa: &Zilliqa) -> Result<(), std::io::Error> {
+        info!("{:?}: start update storage!", self.app_name);
+
         let tokens = match self.fetch().await {
             Ok(tokens) => tokens,
             Err(_) => {
                 let custom_error = Error::new(ErrorKind::Other, "Github is down");
+
+                error!("{:?}: Github is down!", self.app_name);
 
                 return Err(custom_error);
             }
@@ -105,6 +119,12 @@ impl Meta {
                 })
             })
             .collect();
+
+        info!(
+            "{:?}: added new tokens {:?}",
+            self.app_name,
+            new_tokens.len()
+        );
 
         self.list.extend(new_tokens);
         self.db.insert(META_KEY, self.serializatio().as_bytes())?;

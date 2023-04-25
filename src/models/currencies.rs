@@ -1,4 +1,7 @@
+use std::io::{Error, ErrorKind};
+
 use crate::config::currencies::{CURRENCIES, CURRENCIES_DATABASE, CURRENCIES_KEY};
+use log::{error, info};
 use reqwest::Client;
 use serde::Deserialize;
 use serde_json::{Map, Value};
@@ -8,6 +11,7 @@ use sled::{Db, IVec};
 pub struct Currencies {
     pub data: Map<String, Value>,
     db: Db,
+    app_name: &'static str,
 }
 
 #[derive(Deserialize, Debug)]
@@ -17,6 +21,7 @@ struct APIResponse {
 
 impl Currencies {
     pub fn new() -> Self {
+        let app_name = "RATES";
         let db = sled::open(CURRENCIES_DATABASE).expect("Cannot open currencies database.");
         let data = match db.get(CURRENCIES_KEY) {
             Ok(mb_cache) => {
@@ -36,18 +41,29 @@ impl Currencies {
             }
         };
 
-        Currencies { data, db }
+        Currencies { data, db, app_name }
     }
 
     pub fn serializatio(&self) -> String {
         serde_json::to_string(&self.data).unwrap()
     }
 
-    pub async fn update(&mut self) {
-        self.data = self.coingecko().await.unwrap();
+    pub async fn update(&mut self) -> Result<(), Error> {
+        info!("{:?}: start update rates!", self.app_name);
+        self.data = match self.coingecko().await {
+            Ok(data) => data,
+            Err(e) => {
+                let custom_error = Error::new(ErrorKind::Other, "coingecko is down");
+
+                error!("{:?}: cannot load rates, error: {:?}", self.app_name, e);
+
+                return Err(custom_error);
+            }
+        };
         self.db
-            .insert(CURRENCIES_KEY, self.serializatio().as_bytes())
-            .expect("cannot insert");
+            .insert(CURRENCIES_KEY, self.serializatio().as_bytes())?;
+
+        Ok(())
     }
 
     async fn coingecko(&self) -> Result<Map<String, Value>, reqwest::Error> {
