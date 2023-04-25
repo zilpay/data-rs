@@ -12,4 +12,4 @@ pub const MIN_SCORE: u8 = 20;
 pub const CRYPTO_META_URL: &str =
     "https://raw.githubusercontent.com/Ashlar/cryptometa/master/src/full.json";
 pub const META_KEY: &str = "META";
-pub const META_DATABASE: &str = "~/.zilpay/meta";
+pub const META_DATABASE: &str = "/tmp/.zilpay/meta";

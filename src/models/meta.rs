@@ -107,6 +107,7 @@ impl Meta {
                     Ok(tuple) => tuple,
                     Err(_) => return None,
                 };
+
                 // Skip Already has tokens
                 match self.list.iter().find(|t| t.base16 == base16) {
                     Some(_) => return None,
