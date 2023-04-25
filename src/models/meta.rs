@@ -107,6 +107,12 @@ impl Meta {
                     Ok(tuple) => tuple,
                     Err(_) => return None,
                 };
+                // Skip Already has tokens
+                match self.list.iter().find(|t| t.base16 == base16) {
+                    Some(_) => return None,
+                    None => (),
+                }
+
                 let (bech32, score, _) = match tokens
                     .iter()
                     .find(|(_, _, base16)| base16.replace("0x", "") == *base16)
@@ -157,12 +163,6 @@ impl Meta {
                     Some(addr) => hex::encode(addr),
                     None => return None,
                 };
-
-                // Skip Already has tokens
-                match self.list.iter().find(|t| t.bech32 == bech32) {
-                    Some(_) => return None,
-                    None => (),
-                }
 
                 let found_exceptions = TOKENS_EXCEPTIONS.iter().find(|&addr| addr[0] == bech32);
                 let score: u8 = match value.get("gen") {
