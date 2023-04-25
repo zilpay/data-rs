@@ -1,3 +1,4 @@
+use simple_logger::SimpleLogger;
 use std::u8;
 
 use crate::{
@@ -10,7 +11,7 @@ use crate::{
         zilliqa::{JsonBodyReq, JsonBodyRes, Zilliqa},
     },
 };
-use log::{error, info};
+use log::{error, info, LevelFilter};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
@@ -44,6 +45,12 @@ pub struct Meta {
 
 impl Meta {
     pub fn new() -> Self {
+        SimpleLogger::new()
+            .with_colors(true)
+            .with_level(LevelFilter::Info)
+            .init()
+            .unwrap();
+
         let app_name = "META";
         let db = sled::open(META_DATABASE).expect("Cannot meta open database.");
         let list = match db.get(META_KEY) {
