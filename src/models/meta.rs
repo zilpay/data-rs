@@ -2,7 +2,7 @@ use std::u8;
 
 use crate::{
     config::{
-        meta::{CRYPTO_META_URL, MIN_SCORE, TOKENS_EXCEPTIONS},
+        meta::{CRYPTO_META_URL, META_DATABASE, META_KEY, MIN_SCORE, TOKENS_EXCEPTIONS},
         zilliqa::RPC_METHODS,
     },
     utils::{
@@ -13,6 +13,7 @@ use crate::{
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
+use sled::{Db, IVec};
 use std::io::{Error, ErrorKind};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -36,12 +37,23 @@ struct ContractInit {
 #[derive(Debug)]
 pub struct Meta {
     pub list: Vec<Token>,
+    db: Db,
 }
 
 impl Meta {
     pub fn new() -> Self {
-        let list = Vec::new();
-        Meta { list }
+        let db = sled::open(META_DATABASE).expect("Cannot meta open database.");
+        let list = match db.get(META_KEY) {
+            Ok(mb_cache) => {
+                let cache = mb_cache.unwrap_or(IVec::default());
+                let mb_json = std::str::from_utf8(&cache).unwrap();
+
+                serde_json::from_str(mb_json).unwrap_or(Vec::new())
+            }
+            Err(_) => Vec::new(),
+        };
+
+        Meta { list, db }
     }
 
     pub async fn update(&mut self, zilliqa: &Zilliqa) -> Result<(), std::io::Error> {
@@ -74,7 +86,6 @@ impl Meta {
                     Ok(tuple) => tuple,
                     Err(_) => return None,
                 };
-                dbg!(&name, &symbol, &base16, &decimals);
                 let (bech32, score, _) = match tokens
                     .iter()
                     .find(|(_, _, base16)| base16.replace("0x", "") == *base16)
@@ -95,7 +106,8 @@ impl Meta {
             })
             .collect();
 
-        dbg!(&new_tokens);
+        self.list.extend(new_tokens);
+        self.db.insert(META_KEY, self.serializatio().as_bytes())?;
 
         Ok(())
     }

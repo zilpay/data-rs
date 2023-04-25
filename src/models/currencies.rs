@@ -2,7 +2,7 @@ use crate::config::currencies::{CURRENCIES, CURRENCIES_DATABASE, CURRENCIES_KEY}
 use reqwest::Client;
 use serde::Deserialize;
 use serde_json::{Map, Value};
-use sled::Db;
+use sled::{Db, IVec};
 
 #[derive(Debug)]
 pub struct Currencies {
@@ -17,14 +17,15 @@ struct APIResponse {
 
 impl Currencies {
     pub fn new() -> Self {
-        let db = sled::open(CURRENCIES_DATABASE).expect("Cannot open database.");
-        let data = match db.get(CURRENCIES_KEY).unwrap() {
-            Some(cache) => {
+        let db = sled::open(CURRENCIES_DATABASE).expect("Cannot open currencies database.");
+        let data = match db.get(CURRENCIES_KEY) {
+            Ok(mb_cache) => {
+                let cache = mb_cache.unwrap_or(IVec::default());
                 let mb_json = std::str::from_utf8(&cache).unwrap_or("{}");
 
                 serde_json::from_str(mb_json).unwrap_or(Map::new())
             }
-            None => {
+            Err(_) => {
                 let mut data = Map::new();
 
                 for currency in CURRENCIES {
