@@ -1,4 +1,3 @@
-use simple_logger::SimpleLogger;
 use std::u8;
 
 use crate::{
@@ -11,7 +10,7 @@ use crate::{
         zilliqa::{JsonBodyReq, JsonBodyRes, Zilliqa},
     },
 };
-use log::{error, info, LevelFilter};
+use log::{error, info};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
@@ -48,12 +47,6 @@ pub struct Meta {
 
 impl Meta {
     pub fn new() -> Self {
-        SimpleLogger::new()
-            .with_colors(true)
-            .with_level(LevelFilter::Info)
-            .init()
-            .unwrap();
-
         let app_name = "META";
         let db = sled::open(META_DATABASE).expect("Cannot meta open database.");
         let list = match db.get(META_KEY) {
@@ -151,7 +144,7 @@ impl Meta {
         Ok(())
     }
 
-    pub async fn listed_tokens_update(&mut self, dex: Dex) {
+    pub fn listed_tokens_update(&mut self, dex: &Dex) {
         for token in self.list.iter_mut() {
             token.listed = dex.pools.contains_key(&token.base16);
         }
@@ -253,7 +246,18 @@ impl Meta {
             }
         };
         let decimals = match params.iter().find(|item| item.vname == "decimals") {
-            Some(n) => n.value.get(key).unwrap_or(&json!(0)).as_u64().unwrap_or(0) as u8,
+            Some(n) => {
+                let str_value = n
+                    .value
+                    .get(key)
+                    .unwrap_or(&json!("0"))
+                    .as_str()
+                    .unwrap_or("0")
+                    .to_string();
+                let decimals: u8 = str_value.parse().unwrap_or(0);
+
+                decimals
+            }
             None => {
                 return Err(Error::new(ErrorKind::Other, "vname (decimals) is required"));
             }

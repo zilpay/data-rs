@@ -1,7 +1,6 @@
-use log::{error, info, LevelFilter};
+use log::{error, info};
 use serde::Deserialize;
 use serde_json::json;
-use simple_logger::SimpleLogger;
 use sled::{Db, IVec};
 use std::collections::HashMap;
 use std::io::{Error, ErrorKind};
@@ -34,12 +33,6 @@ struct ResPoolState {
 
 impl Dex {
     pub fn new() -> Self {
-        SimpleLogger::new()
-            .with_colors(true)
-            .with_level(LevelFilter::Info)
-            .init()
-            .unwrap();
-
         let app_name = "DEX";
         let db = sled::open(DEX_DATABASE).expect("Cannot dex open database.");
         let pools: HashMap<String, (u128, u128)> = match db.get(DEX_KEY) {
