@@ -18,6 +18,8 @@ use serde_json::{json, Map, Value};
 use sled::{Db, IVec};
 use std::io::{Error, ErrorKind};
 
+use super::dex::Dex;
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Token {
     pub bech32: String,
@@ -147,6 +149,12 @@ impl Meta {
         self.db.insert(META_KEY, self.serializatio().as_bytes())?;
 
         Ok(())
+    }
+
+    pub async fn listed_tokens_update(&mut self, dex: Dex) {
+        for token in self.list.iter_mut() {
+            token.listed = dex.pools.contains_key(&token.base16);
+        }
     }
 
     pub fn serializatio(&self) -> String {
