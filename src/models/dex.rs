@@ -1,6 +1,6 @@
 use log::{error, info, LevelFilter};
-use serde::{Deserialize, Serialize};
-use serde_json::{json, Map, Value};
+use serde::Deserialize;
+use serde_json::json;
 use simple_logger::SimpleLogger;
 use sled::{Db, IVec};
 use std::collections::HashMap;
@@ -17,7 +17,7 @@ use crate::{
 
 #[derive(Debug)]
 pub struct Dex {
-    pub pools: HashMap<String, (String, String)>,
+    pub pools: HashMap<String, (u128, u128)>,
     db: Db,
     app_name: &'static str,
 }
@@ -42,7 +42,7 @@ impl Dex {
 
         let app_name = "DEX";
         let db = sled::open(DEX_DATABASE).expect("Cannot dex open database.");
-        let pools: HashMap<String, (String, String)> = match db.get(DEX_KEY) {
+        let pools: HashMap<String, (u128, u128)> = match db.get(DEX_KEY) {
             Ok(mb_cache) => {
                 let cache = mb_cache.unwrap_or(IVec::default());
                 let mb_json = std::str::from_utf8(&cache).unwrap();
@@ -66,18 +66,21 @@ impl Dex {
         }
     }
 
-    pub async fn update(&self, zilliqa: &Zilliqa) {
-        self.fetch(zilliqa).await;
+    pub async fn update(&mut self, zilliqa: &Zilliqa) -> Result<(), Error> {
+        self.pools = self.fetch(zilliqa).await?;
+
+        info!("{:?}: updated pools {:?}", self.app_name, self.pools.len());
+
+        self.db.insert(DEX_KEY, self.serializatio().as_bytes())?;
+
+        Ok(())
     }
 
     pub fn serializatio(&self) -> String {
         serde_json::to_string(&self.pools).unwrap()
     }
 
-    async fn fetch(
-        &self,
-        zilliqa: &Zilliqa,
-    ) -> Result<HashMap<String, (String, String)>, std::io::Error> {
+    async fn fetch(&self, zilliqa: &Zilliqa) -> Result<HashMap<String, (u128, u128)>, Error> {
         let field = "pools";
         let custom_error = Error::new(ErrorKind::Other, "Fail to fetch or parse response");
         let params = json!([DEX, field, []]);
@@ -93,13 +96,19 @@ impl Dex {
                 return Err(custom_error);
             }
         };
-        let pools: HashMap<String, (String, String)> = pools
+        let pools: HashMap<String, (u128, u128)> = pools
             .into_iter()
-            .map(|(key, value)| {
-                (
-                    key.to_string(),
-                    (value.arguments.0.to_string(), value.arguments.1.to_string()),
-                )
+            .filter_map(|(key, value)| {
+                let key = key.to_string();
+                let zils: u128 = value.arguments.0.parse().unwrap();
+                let tokens: u128 = value.arguments.1.parse().unwrap();
+                let args = (zils, tokens);
+
+                if zils == 0 || tokens == 0 {
+                    return None;
+                }
+
+                Some((key, args))
             })
             .collect();
 

@@ -6,7 +6,7 @@ use tokio;
 #[tokio::main]
 async fn main() {
     let zil = Zilliqa::new();
-    let dex = Dex::new();
+    let mut dex = Dex::new();
 
     dex.update(&zil).await;
 }
