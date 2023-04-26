@@ -27,6 +27,7 @@ pub struct Token {
     pub symbol: String,
     pub token_type: u8, // 1 = ZRC1, 2 = ZRC2
     pub decimals: u8,
+    pub listed: bool,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -98,6 +99,7 @@ impl Meta {
         let new_tokens: Vec<Token> = res
             .iter()
             .filter_map(|r| {
+                let listed = false;
                 let token_type = 1; // TODO: track only ZRC2 tokens.
                 let params = match &r.result {
                     Some(result) => result,
@@ -130,6 +132,7 @@ impl Meta {
                     symbol,
                     token_type,
                     score,
+                    listed,
                 })
             })
             .collect();
