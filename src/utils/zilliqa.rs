@@ -3,6 +3,7 @@ use reqwest::header::{HeaderMap, CONTENT_TYPE};
 use reqwest::Client;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::io;
 
 #[derive(Serialize, Debug)]
@@ -10,7 +11,7 @@ pub struct JsonBodyReq {
     pub id: String,
     pub jsonrpc: String,
     pub method: String,
-    pub params: Vec<String>,
+    pub params: Value,
 }
 
 #[derive(Deserialize, Debug)]
@@ -76,7 +77,7 @@ impl Zilliqa {
         Err(custom_error)
     }
 
-    pub fn build_body(&self, method: &str, params: Vec<String>) -> JsonBodyReq {
+    pub fn build_body(&self, method: &str, params: Value) -> JsonBodyReq {
         let id = String::from("1");
         let jsonrpc = String::from("2.0");
 

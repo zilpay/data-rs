@@ -1,11 +1,12 @@
 use data_rs::models::currencies::Currencies;
+use data_rs::models::dex::Dex;
 use data_rs::{models::meta::Meta, utils::zilliqa::Zilliqa};
 use tokio;
 
 #[tokio::main]
 async fn main() {
     let zil = Zilliqa::new();
-    let mut meta = Meta::new();
+    let dex = Dex::new();
 
-    meta.update(&zil).await.unwrap();
+    dex.update(&zil).await;
 }

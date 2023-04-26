@@ -90,7 +90,7 @@ impl Meta {
         let bodies: Vec<JsonBodyReq> = tokens
             .iter()
             .map(|(_, _, base16)| {
-                let params = vec![base16.to_string()];
+                let params = json!([base16]);
 
                 zilliqa.build_body(RPC_METHODS.get_smart_contract_init, params)
             })
@@ -160,8 +160,11 @@ impl Meta {
         let body: Map<String, Value> = response.json().await?;
         let body: Vec<(String, u8, String)> = body
             .into_iter()
-            .filter(|(key, _)| key.contains(chain))
             .filter_map(|(key, value)| {
+                if !key.contains(chain) {
+                    return None;
+                }
+
                 let bech32 = key.replace(chain, "");
                 let base16 = match from_bech32_address(&bech32) {
                     Some(addr) => hex::encode(addr),
