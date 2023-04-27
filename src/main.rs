@@ -17,7 +17,8 @@ async fn main() {
     let mut tokens = Meta::new();
 
     tokens.update(&zil).await;
-    // dex.update(&zil).await;
+    dex.update(&zil).await;
+
     tokens.listed_tokens_update(&dex);
 
     dbg!(&tokens.list);
