@@ -27,28 +27,40 @@ async fn main() {
     let rates_worker_ref = Arc::clone(&rates);
     let dex_worker_ref = Arc::clone(&dex);
 
-    tokio::task::spawn_local(async move {
+    tokio::task::spawn(async move {
         let zil = Zilliqa::new();
 
         loop {
-            let mut meta = meta_worker_ref.lock().unwrap();
-            let mut rates = rates_worker_ref.lock().unwrap();
-            let mut dex = dex_worker_ref.lock().unwrap();
+            let mut rates = match rates_worker_ref.lock() {
+                Ok(rates) => rates.update().await,
+                Err(e) => {
+                    error!("RATES: {:?}", e);
+                    continue;
+                }
+            };
+            let mut dex = match dex_worker_ref.lock() {
+                Ok(dex) => {
+                    dex.update(&zil).await;
 
-            match meta.update(&zil).await {
-                Ok(_) => (),
-                Err(e) => error!("{:?}", e),
+                    dex
+                }
+                Err(e) => {
+                    error!("DEX: {:?}", e);
+                    continue;
+                }
             };
-            match dex.update(&zil).await {
-                Ok(_) => (),
-                Err(e) => error!("{:?}", e),
-            };
-            match rates.update().await {
-                Ok(_) => (),
-                Err(e) => error!("{:?}", e),
-            };
+            let mut meta = match meta_worker_ref.lock() {
+                Ok(meta) => {
+                    meta.update(&zil).await;
+                    meta.listed_tokens_update(&dex);
 
-            meta.listed_tokens_update(&dex);
+                    meta
+                }
+                Err(e) => {
+                    error!("META: {:?}", e);
+                    continue;
+                }
+            };
 
             drop(meta);
             drop(rates);

@@ -21,17 +21,24 @@ pub async fn run_server(
 ) -> Result<(), io::Error> {
     let addr = SocketAddr::from(([127, 0, 0, 1], PORT));
     let listener = TcpListener::bind(&addr).await.unwrap();
-    let cloned_meta = meta.clone();
-    let dex_cloned = dex.clone();
-    let rates = rates.clone();
 
     info!("Listening on http://{}", addr);
 
     loop {
+        let meta_cloned = Arc::clone(&meta);
+        let dex_cloned = Arc::clone(&dex);
+        let rates_cloned = Arc::clone(&rates);
         let (stream, _) = listener.accept().await?;
 
         tokio::task::spawn(async move {
-            let service = service_fn(move |req| route(req, &meta, &dex, &rates));
+            let service = service_fn(move |req| {
+                route(
+                    req,
+                    meta_cloned.clone(),
+                    dex_cloned.clone(),
+                    rates_cloned.clone(),
+                )
+            });
 
             if let Err(err) = http1::Builder::new()
                 .serve_connection(stream, service)
