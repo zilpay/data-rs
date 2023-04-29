@@ -5,7 +5,10 @@ use data_rs::{
 };
 use log::{error, LevelFilter};
 use simple_logger::SimpleLogger;
-use std::time::Duration;
+use std::{
+    sync::{Arc, Mutex},
+    time::Duration,
+};
 use tokio;
 
 #[tokio::main]
@@ -15,14 +18,23 @@ async fn main() {
         .with_level(LevelFilter::Info)
         .init()
         .unwrap();
-    let mut meta = Meta::new();
-    let mut rates = Currencies::new();
-    let mut dex = Dex::new();
 
-    tokio::task::spawn(async move {
+    let meta = Arc::new(Mutex::new(Meta::new()));
+    let rates = Arc::new(Mutex::new(Currencies::new()));
+    let dex = Arc::new(Mutex::new(Dex::new()));
+
+    let meta_worker_ref = Arc::clone(&meta);
+    let rates_worker_ref = Arc::clone(&rates);
+    let dex_worker_ref = Arc::clone(&dex);
+
+    tokio::task::spawn_local(async move {
         let zil = Zilliqa::new();
 
         loop {
+            let mut meta = meta_worker_ref.lock().unwrap();
+            let mut rates = rates_worker_ref.lock().unwrap();
+            let mut dex = dex_worker_ref.lock().unwrap();
+
             match meta.update(&zil).await {
                 Ok(_) => (),
                 Err(e) => error!("{:?}", e),
@@ -38,9 +50,13 @@ async fn main() {
 
             meta.listed_tokens_update(&dex);
 
+            drop(meta);
+            drop(rates);
+            drop(dex);
+
             tokio::time::sleep(Duration::from_secs(300)).await;
         }
     });
 
-    run_server(&meta, &dex, &rates).await.unwrap();
+    run_server(meta, dex, rates).await.unwrap();
 }

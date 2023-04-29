@@ -1,3 +1,5 @@
+use std::sync::{Arc, Mutex};
+
 use bytes::Bytes;
 use http_body_util::Full;
 use hyper::StatusCode;
@@ -10,9 +12,9 @@ mod rates;
 
 pub async fn route(
     req: Request<hyper::body::Incoming>,
-    meta: &Meta,
-    dex: &Dex,
-    rates: &Currencies,
+    meta: Arc<Mutex<Meta>>,
+    dex: Arc<Mutex<Dex>>,
+    rates: Arc<Mutex<Currencies>>,
 ) -> Result<Response<Full<Bytes>>, hyper::Error> {
     match (req.method(), req.uri().path()) {
         (&hyper::Method::GET, "/api/v1/rates") => rates::handle_get_rates(req, rates).await,
