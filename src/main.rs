@@ -1,6 +1,4 @@
-// use data_rs::models::currencies::Currencies;
-use data_rs::models::dex::Dex;
-use data_rs::{models::meta::Meta, utils::zilliqa::Zilliqa};
+use data_rs::server::run_server;
 use log::LevelFilter;
 use simple_logger::SimpleLogger;
 use tokio;
@@ -12,14 +10,6 @@ async fn main() {
         .with_level(LevelFilter::Info)
         .init()
         .unwrap();
-    let zil = Zilliqa::new();
-    let mut dex = Dex::new();
-    let mut tokens = Meta::new();
 
-    tokens.update(&zil).await;
-    dex.update(&zil).await;
-
-    tokens.listed_tokens_update(&dex);
-
-    dbg!(&tokens.list);
+    run_server().await;
 }
