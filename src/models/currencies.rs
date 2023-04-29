@@ -1,9 +1,7 @@
 use std::io::{Error, ErrorKind};
 
-use simple_logger::SimpleLogger;
-
 use crate::config::currencies::{CURRENCIES, CURRENCIES_DATABASE, CURRENCIES_KEY};
-use log::{error, info, LevelFilter};
+use log::{error, info};
 use reqwest::Client;
 use serde::Deserialize;
 use serde_json::{Map, Value};
@@ -23,12 +21,6 @@ struct APIResponse {
 
 impl Currencies {
     pub fn new() -> Self {
-        SimpleLogger::new()
-            .with_level(LevelFilter::Info)
-            .with_colors(true)
-            .init()
-            .unwrap();
-
         let app_name = "RATES";
         let db = sled::open(CURRENCIES_DATABASE).expect("Cannot open currencies database.");
         let data = match db.get(CURRENCIES_KEY) {

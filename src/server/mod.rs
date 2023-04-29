@@ -6,10 +6,12 @@ use tokio::net::TcpListener;
 
 use routers::route;
 
+use crate::config::server::PORT;
+
 mod routers;
 
 pub async fn run_server() -> Result<(), io::Error> {
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
+    let addr = SocketAddr::from(([127, 0, 0, 1], PORT));
     let listener = TcpListener::bind(&addr).await.unwrap();
 
     info!("Listening on http://{}", addr);
