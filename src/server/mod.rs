@@ -6,11 +6,18 @@ use tokio::net::TcpListener;
 
 use routers::route;
 
-use crate::config::server::PORT;
+use crate::{
+    config::server::PORT,
+    models::{currencies::Currencies, dex::Dex, meta::Meta},
+};
 
 mod routers;
 
-pub async fn run_server() -> Result<(), io::Error> {
+pub async fn run_server(
+    meta: &'static Meta,
+    dex: &'static Dex,
+    rates: &'static Currencies,
+) -> Result<(), io::Error> {
     let addr = SocketAddr::from(([127, 0, 0, 1], PORT));
     let listener = TcpListener::bind(&addr).await.unwrap();
 
@@ -20,7 +27,7 @@ pub async fn run_server() -> Result<(), io::Error> {
         let (stream, _) = listener.accept().await?;
 
         tokio::task::spawn(async move {
-            let service = service_fn(move |req| route(req));
+            let service = service_fn(move |req| route(req, meta, dex, rates));
 
             if let Err(err) = http1::Builder::new()
                 .serve_connection(stream, service)

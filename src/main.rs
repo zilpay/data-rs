@@ -42,5 +42,5 @@ async fn main() {
         }
     });
 
-    run_server().await.unwrap();
+    run_server(&meta, &dex, &rates).await.unwrap();
 }
