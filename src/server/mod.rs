@@ -1,7 +1,8 @@
+use async_mutex::Mutex;
 use hyper::server::conn::http1;
 use hyper::service::service_fn;
 use log::{error, info};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::{io, net::SocketAddr};
 use tokio::net::TcpListener;
 

@@ -1,9 +1,9 @@
-use std::sync::{Arc, Mutex};
-
+use async_mutex::Mutex;
 use bytes::Bytes;
 use http_body_util::Full;
 use hyper::StatusCode;
 use hyper::{Request, Response};
+use std::sync::Arc;
 
 use crate::models::{currencies::Currencies, dex::Dex, meta::Meta};
 

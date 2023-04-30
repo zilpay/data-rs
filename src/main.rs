@@ -1,14 +1,13 @@
+use async_mutex::Mutex;
 use data_rs::{
     models::{currencies::Currencies, dex::Dex, meta::Meta},
     server::run_server,
     utils::zilliqa::Zilliqa,
 };
-use log::{error, LevelFilter};
+use log::LevelFilter;
 use simple_logger::SimpleLogger;
-use std::{
-    sync::{Arc, Mutex},
-    time::Duration,
-};
+use std::sync::Arc;
+use std::time::Duration;
 use tokio;
 
 #[tokio::main]
@@ -23,7 +22,7 @@ async fn main() {
     let rates = Arc::new(Mutex::new(Currencies::new()));
     let dex = Arc::new(Mutex::new(Dex::new()));
 
-    let meta_worker_ref = Arc::clone(&meta);
+    let meta_worker_ref = meta.clone();
     let rates_worker_ref = Arc::clone(&rates);
     let dex_worker_ref = Arc::clone(&dex);
 
@@ -31,42 +30,15 @@ async fn main() {
         let zil = Zilliqa::new();
 
         loop {
-            let mut rates = match rates_worker_ref.lock() {
-                Ok(rates) => rates.update().await,
-                Err(e) => {
-                    error!("RATES: {:?}", e);
-                    continue;
-                }
-            };
-            let mut dex = match dex_worker_ref.lock() {
-                Ok(dex) => {
-                    dex.update(&zil).await;
+            tokio::time::sleep(Duration::from_secs(30)).await;
 
-                    dex
-                }
-                Err(e) => {
-                    error!("DEX: {:?}", e);
-                    continue;
-                }
-            };
-            let mut meta = match meta_worker_ref.lock() {
-                Ok(meta) => {
-                    meta.update(&zil).await;
-                    meta.listed_tokens_update(&dex);
+            let mut meta_guard = meta_worker_ref.lock().await;
+            let mut rates = rates_worker_ref.lock().await;
+            let mut dex = dex_worker_ref.lock().await;
 
-                    meta
-                }
-                Err(e) => {
-                    error!("META: {:?}", e);
-                    continue;
-                }
-            };
-
-            drop(meta);
-            drop(rates);
-            drop(dex);
-
-            tokio::time::sleep(Duration::from_secs(300)).await;
+            rates.update().await.unwrap();
+            meta_guard.update(&zil).await.unwrap();
+            dex.update(&zil).await.unwrap();
         }
     });
 

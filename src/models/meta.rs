@@ -74,10 +74,10 @@ impl Meta {
 
         let tokens = match self.fetch().await {
             Ok(tokens) => tokens,
-            Err(_) => {
+            Err(e) => {
                 let custom_error = Error::new(ErrorKind::Other, "Github is down");
 
-                error!("{:?}: Github is down!", self.app_name);
+                error!("{:?}: Github is down!, error: {:?}", self.app_name, e);
 
                 return Err(custom_error);
             }
