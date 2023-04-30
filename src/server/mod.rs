@@ -1,10 +1,9 @@
-use async_mutex::Mutex;
 use hyper::server::conn::http1;
 use hyper::service::service_fn;
 use log::{error, info};
-use std::sync::Arc;
-use std::{io, net::SocketAddr};
+use std::{io, net::SocketAddr, sync::Arc};
 use tokio::net::TcpListener;
+use tokio::sync::RwLock;
 
 use routers::route;
 
@@ -16,9 +15,9 @@ use crate::{
 mod routers;
 
 pub async fn run_server(
-    meta: Arc<Mutex<Meta>>,
-    dex: Arc<Mutex<Dex>>,
-    rates: Arc<Mutex<Currencies>>,
+    meta: &Arc<RwLock<Meta>>,
+    dex: &Arc<RwLock<Dex>>,
+    rates: &Arc<RwLock<Currencies>>,
 ) -> Result<(), io::Error> {
     let addr = SocketAddr::from(([127, 0, 0, 1], PORT));
     let listener = TcpListener::bind(&addr).await.unwrap();
@@ -26,19 +25,14 @@ pub async fn run_server(
     info!("Listening on http://{}", addr);
 
     loop {
-        let meta_cloned = Arc::clone(&meta);
-        let dex_cloned = Arc::clone(&dex);
-        let rates_cloned = Arc::clone(&rates);
         let (stream, _) = listener.accept().await?;
+        let meta_ref = Arc::clone(&meta);
+        let dex_ref = Arc::clone(&dex);
+        let rates_ref = Arc::clone(&rates);
 
         tokio::task::spawn(async move {
             let service = service_fn(move |req| {
-                route(
-                    req,
-                    meta_cloned.clone(),
-                    dex_cloned.clone(),
-                    rates_cloned.clone(),
-                )
+                route(req, meta_ref.clone(), dex_ref.clone(), rates_ref.clone())
             });
 
             if let Err(err) = http1::Builder::new()
