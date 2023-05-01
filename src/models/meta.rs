@@ -19,7 +19,7 @@ use std::io::{Error, ErrorKind};
 
 use super::dex::Dex;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Token {
     pub bech32: String,
     pub base16: String,

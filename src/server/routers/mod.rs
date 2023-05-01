@@ -7,16 +7,18 @@ use tokio::sync::RwLock;
 
 use crate::models::{currencies::Currencies, dex::Dex, meta::Meta};
 
+mod dex;
 mod meta;
 mod rates;
 
 pub async fn route(
     req: Request<hyper::body::Incoming>,
-    _meta: Arc<RwLock<Meta>>,
-    _dex: Arc<RwLock<Dex>>,
+    meta: Arc<RwLock<Meta>>,
+    dex: Arc<RwLock<Dex>>,
     rates: Arc<RwLock<Currencies>>,
 ) -> Result<Response<Full<Bytes>>, hyper::Error> {
     match (req.method(), req.uri().path()) {
+        (&hyper::Method::GET, "/api/v1/dex") => dex::handle_get_pools(req, meta, dex, rates).await,
         (&hyper::Method::GET, "/api/v1/rates") => rates::handle_get_rates(req, rates).await,
         (&hyper::Method::POST, "/") => meta::handle_get_meta(req).await,
         _ => Ok(Response::builder()

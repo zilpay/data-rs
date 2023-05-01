@@ -75,8 +75,11 @@ impl Currencies {
 
     async fn coingecko() -> Result<Map<String, Value>, reqwest::Error> {
         let client = Client::new();
-        let params = format!("?ids=zilliqa&vs_currencies={:?}", CURRENCIES.join(","));
-        let url = format!("https://api.coingecko.com/api/v3/simple/price{}", params);
+        let url = format!(
+            "https://api.coingecko.com/api/v3/simple/price?ids=zilliqa&vs_currencies={}",
+            CURRENCIES.join(",")
+        )
+        .to_lowercase();
         let response = client.get(url).send().await?;
 
         let body: APIResponse = response.json().await?;
