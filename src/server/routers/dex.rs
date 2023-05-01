@@ -33,7 +33,6 @@ pub async fn handle_get_pools(
 ) -> Result<Response<Full<Bytes>>, hyper::Error> {
     let mut tokens: Vec<Token> = Vec::new();
     let mut pools: HashMap<String, (String, String)> = HashMap::new();
-    let count = pools.len();
     let rate = rates
         .read()
         .await
@@ -41,6 +40,18 @@ pub async fn handle_get_pools(
         .get("usd")
         .unwrap_or(&json!("0"))
         .to_string();
+    let zilliqa = Token {
+        bech32: String::from("zil1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq9yf6pz"),
+        base16: String::from("0x0000000000000000000000000000000000000000"),
+        decimals: 12,
+        symbol: String::from("ZIL"),
+        name: String::from("Zilliqa"),
+        token_type: 1,
+        score: 100,
+        listed: true,
+    };
+
+    tokens.push(zilliqa);
 
     for token in meta.read().await.list.iter() {
         if token.listed && token.token_type == 1 {
@@ -56,7 +67,7 @@ pub async fn handle_get_pools(
     }
 
     let tokens_res = ListedTokens {
-        count,
+        count: tokens.len(),
         list: tokens,
     };
     let response = DexResponse {
