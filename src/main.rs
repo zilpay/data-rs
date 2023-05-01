@@ -1,9 +1,10 @@
 use data_rs::{
+    config::currencies::CURRENCIES,
     models::{currencies::Currencies, dex::Dex, meta::Meta},
     server::run_server,
     utils::zilliqa::Zilliqa,
 };
-use log::LevelFilter;
+use log::{error, LevelFilter};
 use simple_logger::SimpleLogger;
 use std::{sync::Arc, time::Duration};
 use tokio;
@@ -25,41 +26,47 @@ async fn main() {
     let dex_ref = Arc::clone(&dex);
     let rates_ref = Arc::clone(&rates);
 
-    tokio::task::spawn(async move {
-        loop {
-            tokio::time::sleep(Duration::from_secs(30)).await;
-
-            let zil = Zilliqa::new();
-            let mut meta = meta_ref.write().await;
-
-            meta.update(&zil).await.unwrap();
-
-            let dex = dex_ref.read().await;
-
-            meta.listed_tokens_update(&dex);
-        }
-    });
-
-    tokio::task::spawn(async move {
-        loop {
-            tokio::time::sleep(Duration::from_secs(30)).await;
-
-            let mut rates = rates_ref.write().await;
-
-            rates.update().await.unwrap();
-        }
-    });
+    // tokio::task::spawn(async move {
+    //     loop {
+    //         tokio::time::sleep(Duration::from_secs(30)).await;
+    //
+    //         let zil = Zilliqa::new();
+    //         let mut meta = meta_ref.write().await;
+    //
+    //         meta.update(&zil).await.unwrap();
+    //
+    //         let dex = dex_ref.read().await;
+    //
+    //         meta.listed_tokens_update(&dex);
+    //     }
+    // });
 
     tokio::task::spawn(async move {
         loop {
-            tokio::time::sleep(Duration::from_secs(30)).await;
+            tokio::time::sleep(Duration::from_secs(10)).await;
 
-            let zil = Zilliqa::new();
-            let mut dex = dex_ref.write().await;
-
-            dex.update(&zil).await.unwrap();
+            match Currencies::fetch_rates().await {
+                Ok(rates) => {
+                    println!("{:?}", rates);
+                    rates_ref.write().await.update(rates).unwrap();
+                }
+                Err(e) => {
+                    error!("fetch rates error: {:?}", e);
+                }
+            };
         }
     });
+
+    // tokio::task::spawn(async move {
+    //     loop {
+    //         tokio::time::sleep(Duration::from_secs(30)).await;
+    //
+    //         let zil = Zilliqa::new();
+    //         let mut dex = dex_ref.write().await;
+    //
+    //         dex.update(&zil).await.unwrap();
+    //     }
+    // });
 
     let meta_ref0 = Arc::clone(&meta);
     let dex_ref0 = Arc::clone(&dex);

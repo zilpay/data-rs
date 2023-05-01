@@ -48,25 +48,31 @@ impl Currencies {
         serde_json::to_string(&self.data).unwrap()
     }
 
-    pub async fn update(&mut self) -> Result<(), Error> {
+    pub fn update(&mut self, rates: Map<String, Value>) -> Result<(), Error> {
         info!("{:?}: start update rates!", self.app_name);
-        self.data = match self.coingecko().await {
-            Ok(data) => data,
-            Err(e) => {
-                let custom_error = Error::new(ErrorKind::Other, "coingecko is down");
-
-                error!("{:?}: cannot load rates, error: {:?}", self.app_name, e);
-
-                return Err(custom_error);
-            }
-        };
+        self.data = rates;
         self.db
             .insert(CURRENCIES_KEY, self.serializatio().as_bytes())?;
 
         Ok(())
     }
 
-    async fn coingecko(&self) -> Result<Map<String, Value>, reqwest::Error> {
+    pub async fn fetch_rates() -> Result<Map<String, Value>, Error> {
+        let data = match Currencies::coingecko().await {
+            Ok(data) => data,
+            Err(e) => {
+                let custom_error = Error::new(ErrorKind::Other, "coingecko is down");
+
+                error!("coingecko: cannot load rates, error: {:?}", e);
+
+                return Err(custom_error);
+            }
+        };
+
+        Ok(data)
+    }
+
+    async fn coingecko() -> Result<Map<String, Value>, reqwest::Error> {
         let client = Client::new();
         let params = format!("?ids=zilliqa&vs_currencies={:?}", CURRENCIES.join(","));
         let url = format!("https://api.coingecko.com/api/v3/simple/price{}", params);
