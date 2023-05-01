@@ -32,7 +32,7 @@ pub struct Token {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-struct ContractInit {
+pub struct ContractInit {
     #[serde(flatten)]
     pub value: serde_json::Value,
     pub vname: String,
@@ -69,28 +69,11 @@ impl Meta {
         Meta { list, db, app_name }
     }
 
-    pub async fn update(&mut self, zilliqa: &Zilliqa) -> Result<(), std::io::Error> {
-        info!("{:?}: start update storage!", self.app_name);
-
-        let tokens = match self.fetch().await {
-            Ok(tokens) => tokens,
-            Err(e) => {
-                let custom_error = Error::new(ErrorKind::Other, "Github is down");
-
-                error!("{:?}: Github is down!, error: {:?}", self.app_name, e);
-
-                return Err(custom_error);
-            }
-        };
-        let bodies: Vec<JsonBodyReq> = tokens
-            .iter()
-            .map(|(_, _, base16)| {
-                let params = json!([base16]);
-
-                zilliqa.build_body(RPC_METHODS.get_smart_contract_init, params)
-            })
-            .collect();
-        let res: Vec<JsonBodyRes<Vec<ContractInit>>> = zilliqa.fetch(bodies).await?;
+    pub fn update(
+        &mut self,
+        tokens: Vec<(String, u8, String)>,
+        res: Vec<JsonBodyRes<Vec<ContractInit>>>,
+    ) -> Result<(), std::io::Error> {
         let new_tokens: Vec<Token> = res
             .iter()
             .filter_map(|r| {
@@ -100,7 +83,7 @@ impl Meta {
                     Some(result) => result,
                     None => return None,
                 };
-                let (name, symbol, base16, decimals) = match self.parse_init(params) {
+                let (name, symbol, base16, decimals) = match Meta::parse_init(params) {
                     Ok(tuple) => tuple,
                     Err(_) => return None,
                 };
@@ -144,6 +127,36 @@ impl Meta {
         Ok(())
     }
 
+    pub async fn sort_zilliqa_tokens(
+        tokens: &Vec<(String, u8, String)>,
+        zilliqa: &Zilliqa,
+    ) -> Result<Vec<JsonBodyRes<Vec<ContractInit>>>, Error> {
+        let bodies: Vec<JsonBodyReq> = tokens
+            .iter()
+            .map(|(_, _, base16)| {
+                let params = json!([base16]);
+
+                zilliqa.build_body(RPC_METHODS.get_smart_contract_init, params)
+            })
+            .collect();
+        let res: Vec<JsonBodyRes<Vec<ContractInit>>> = zilliqa.fetch(bodies).await?;
+
+        Ok(res)
+    }
+
+    pub async fn get_meta_tokens() -> Result<Vec<(String, u8, String)>, Error> {
+        match Meta::fetch().await {
+            Ok(tokens) => return Ok(tokens),
+            Err(e) => {
+                let custom_error = Error::new(ErrorKind::Other, "Github is down");
+
+                error!("Github is down!, error: {:?}", e);
+
+                return Err(custom_error);
+            }
+        };
+    }
+
     pub fn listed_tokens_update(&mut self, dex: &Dex) {
         for token in self.list.iter_mut() {
             token.listed = dex.pools.contains_key(&token.base16);
@@ -154,7 +167,7 @@ impl Meta {
         serde_json::to_string(&self.list).unwrap()
     }
 
-    async fn fetch(&self) -> Result<Vec<(String, u8, String)>, reqwest::Error> {
+    async fn fetch() -> Result<Vec<(String, u8, String)>, reqwest::Error> {
         let client = Client::new();
         let response = client.get(CRYPTO_META_URL).send().await?;
         let chain = "zilliqa.";
@@ -201,10 +214,7 @@ impl Meta {
         Ok(body)
     }
 
-    fn parse_init(
-        &self,
-        params: &Vec<ContractInit>,
-    ) -> Result<(String, String, String, u8), Error> {
+    fn parse_init(params: &Vec<ContractInit>) -> Result<(String, String, String, u8), Error> {
         let key = "value";
         let name = match params.iter().find(|item| item.vname == "name") {
             Some(n) => n

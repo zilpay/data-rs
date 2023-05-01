@@ -59,21 +59,26 @@ impl Dex {
         }
     }
 
-    pub async fn update(&mut self, zilliqa: &Zilliqa) -> Result<(), Error> {
-        self.pools = self.fetch(zilliqa).await?;
+    pub fn update(&mut self, pools: HashMap<String, (u128, u128)>) -> Result<(), Error> {
+        self.pools = pools;
+        self.db.insert(DEX_KEY, self.serializatio().as_bytes())?;
 
         info!("{:?}: updated pools {:?}", self.app_name, self.pools.len());
 
-        self.db.insert(DEX_KEY, self.serializatio().as_bytes())?;
-
         Ok(())
+    }
+
+    pub async fn get_pools(zilliqa: &Zilliqa) -> Result<HashMap<String, (u128, u128)>, Error> {
+        let pools = Dex::fetch(zilliqa).await?;
+
+        Ok(pools)
     }
 
     pub fn serializatio(&self) -> String {
         serde_json::to_string(&self.pools).unwrap()
     }
 
-    async fn fetch(&self, zilliqa: &Zilliqa) -> Result<HashMap<String, (u128, u128)>, Error> {
+    async fn fetch(zilliqa: &Zilliqa) -> Result<HashMap<String, (u128, u128)>, Error> {
         let field = "pools";
         let custom_error = Error::new(ErrorKind::Other, "Fail to fetch or parse response");
         let params = json!([DEX, field, []]);

@@ -49,10 +49,11 @@ impl Currencies {
     }
 
     pub fn update(&mut self, rates: Map<String, Value>) -> Result<(), Error> {
-        info!("{:?}: start update rates!", self.app_name);
         self.data = rates;
         self.db
             .insert(CURRENCIES_KEY, self.serializatio().as_bytes())?;
+
+        info!("{:?}: rates updated!", self.app_name);
 
         Ok(())
     }
