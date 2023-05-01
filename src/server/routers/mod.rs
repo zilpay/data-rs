@@ -12,8 +12,8 @@ mod rates;
 
 pub async fn route(
     req: Request<hyper::body::Incoming>,
-    meta: Arc<RwLock<Meta>>,
-    dex: Arc<RwLock<Dex>>,
+    _meta: Arc<RwLock<Meta>>,
+    _dex: Arc<RwLock<Dex>>,
     rates: Arc<RwLock<Currencies>>,
 ) -> Result<Response<Full<Bytes>>, hyper::Error> {
     match (req.method(), req.uri().path()) {

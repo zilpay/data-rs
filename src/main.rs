@@ -1,5 +1,4 @@
 use data_rs::{
-    config::currencies::CURRENCIES,
     models::{currencies::Currencies, dex::Dex, meta::Meta},
     server::run_server,
     utils::zilliqa::Zilliqa,
