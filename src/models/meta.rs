@@ -29,6 +29,7 @@ pub struct Token {
     pub token_type: u8, // 1 = ZRC1, 2 = ZRC2
     pub decimals: u8,
     pub listed: bool,
+    pub status: u8, // 0 - blocked, 1 - enabled
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -79,6 +80,7 @@ impl Meta {
             .filter_map(|r| {
                 let listed = false;
                 let token_type = 1; // TODO: track only ZRC2 tokens.
+                let status = 1;
                 let params = match &r.result {
                     Some(result) => result,
                     None => return None,
@@ -104,6 +106,7 @@ impl Meta {
 
                 Some(Token {
                     bech32,
+                    status,
                     base16,
                     decimals,
                     name,

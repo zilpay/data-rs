@@ -47,6 +47,7 @@ pub async fn handle_get_pools(
         symbol: String::from("ZIL"),
         name: String::from("Zilliqa"),
         token_type: 1,
+        status: 1,
         score: 100,
         listed: true,
     };
@@ -54,7 +55,7 @@ pub async fn handle_get_pools(
     tokens.push(zilliqa);
 
     for token in meta.read().await.list.iter() {
-        if token.listed && token.token_type == 1 {
+        if token.listed && token.token_type == 1 && token.status == 1 {
             tokens.push(token.clone());
         }
     }

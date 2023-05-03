@@ -10,6 +10,7 @@ pub async fn handle_get_rates(
     _req: Request<hyper::body::Incoming>,
     rates: Arc<RwLock<Currencies>>,
 ) -> Result<Response<Full<Bytes>>, hyper::Error> {
+    // TODO: add currency query.
     let json = rates.read().await.serializatio();
     let response = Response::builder()
         .header(header::CONTENT_TYPE, "application/json")
