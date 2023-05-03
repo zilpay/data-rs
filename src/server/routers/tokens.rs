@@ -1,5 +1,6 @@
 use crate::models::meta::Meta;
 use bytes::Bytes;
+use http_body_util::BodyExt;
 use http_body_util::Full;
 use hyper::{header, Request, Response, StatusCode};
 use serde_json::{self, json};
@@ -49,6 +50,8 @@ pub async fn handle_update_token(
 ) -> Result<Response<Full<Bytes>>, hyper::Error> {
     let params = req.uri().path().split("/").collect::<Vec<&str>>();
     let symbol = params.last().unwrap_or(&"").clone().to_lowercase();
+
+    let whole_body = req.collect().await?.aggregate();
 
     if let Some(token) = meta
         .read()
