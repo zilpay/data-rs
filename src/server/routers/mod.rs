@@ -8,8 +8,8 @@ use tokio::sync::RwLock;
 use crate::models::{currencies::Currencies, dex::Dex, meta::Meta};
 
 mod dex;
-mod meta;
 mod rates;
+mod tokens;
 
 pub async fn route(
     req: Request<hyper::body::Incoming>,
@@ -20,7 +20,9 @@ pub async fn route(
     match (req.method(), req.uri().path()) {
         (&hyper::Method::GET, "/api/v1/dex") => dex::handle_get_pools(req, meta, dex, rates).await,
         (&hyper::Method::GET, "/api/v1/rates") => rates::handle_get_rates(req, rates).await,
-        (&hyper::Method::POST, "/") => meta::handle_get_meta(req).await,
+        (&hyper::Method::GET, path) if path.starts_with("/api/v1/token/") => {
+            tokens::handle_get_token(req, meta).await
+        }
         _ => Ok(Response::builder()
             .status(StatusCode::NOT_FOUND)
             .body(Full::new(Bytes::from("Not Found")))
