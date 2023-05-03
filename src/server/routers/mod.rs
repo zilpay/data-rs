@@ -23,6 +23,9 @@ pub async fn route(
         (&hyper::Method::GET, path) if path.starts_with("/api/v1/token/") => {
             tokens::handle_get_token(req, meta).await
         }
+        (&hyper::Method::PUT, path) if path.starts_with("/api/v1/token/") => {
+            tokens::handle_update_token(req, meta).await
+        }
         _ => Ok(Response::builder()
             .status(StatusCode::NOT_FOUND)
             .body(Full::new(Bytes::from("Not Found")))
