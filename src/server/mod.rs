@@ -19,7 +19,7 @@ pub async fn run_server(
     dex: &Arc<RwLock<Dex>>,
     rates: &Arc<RwLock<Currencies>>,
 ) -> Result<(), io::Error> {
-    let addr = SocketAddr::from(([127, 0, 0, 1], PORT));
+    let addr = SocketAddr::from(([0, 0, 0, 0], PORT));
     let listener = TcpListener::bind(&addr).await.unwrap();
 
     info!("Listening on http://{}", addr);
