@@ -1,6 +1,6 @@
 use std::io::{Error, ErrorKind};
 
-use crate::config::currencies::{CURRENCIES, CURRENCIES_DATABASE, CURRENCIES_KEY};
+use crate::config::currencies::{CURRENCIES, CURRENCIES_KEY};
 use log::{error, info};
 use reqwest::Client;
 use serde::Deserialize;
@@ -20,9 +20,9 @@ struct APIResponse {
 }
 
 impl Currencies {
-    pub fn new() -> Self {
+    pub fn new(db_path: &str) -> Self {
         let app_name = "RATES";
-        let db = sled::open(CURRENCIES_DATABASE).expect("Cannot open currencies database.");
+        let db = sled::open(db_path).expect("Cannot open currencies database.");
         let data = match db.get(CURRENCIES_KEY) {
             Ok(mb_cache) => {
                 let cache = mb_cache.unwrap_or(IVec::default());

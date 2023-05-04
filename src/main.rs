@@ -17,9 +17,11 @@ async fn main() {
         .init()
         .unwrap();
 
-    let meta = Arc::new(RwLock::new(Meta::new()));
-    let rates = Arc::new(RwLock::new(Currencies::new()));
-    let dex = Arc::new(RwLock::new(Dex::new()));
+    let db_path = std::env::var("DB_PATH").expect("Incorrect DB_PATH env var");
+
+    let meta = Arc::new(RwLock::new(Meta::new(&db_path)));
+    let rates = Arc::new(RwLock::new(Currencies::new(&db_path)));
+    let dex = Arc::new(RwLock::new(Dex::new(&db_path)));
 
     let meta_ref = Arc::clone(&meta);
     let dex_ref = Arc::clone(&dex);

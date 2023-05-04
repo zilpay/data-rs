@@ -13,11 +13,11 @@ To build the server for production, use the following command:
 
 ```bash
 cargo build --release
-Environment Variables
 ```
 The following environment variable is required to run the server:
 
  * ACCESS_TOKEN: The access token to authenticate requests to the token updates endpoint.
+ * DB_PATH: The path of the database filesystem.
 
 Configuration Files
 

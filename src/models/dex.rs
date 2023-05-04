@@ -8,7 +8,7 @@ use std::u128;
 
 use crate::{
     config::{
-        dex::{DEX, DEX_DATABASE, DEX_KEY},
+        dex::{DEX, DEX_KEY},
         zilliqa::RPC_METHODS,
     },
     utils::zilliqa::{JsonBodyReq, JsonBodyRes, Zilliqa},
@@ -32,9 +32,9 @@ struct ResPoolState {
 }
 
 impl Dex {
-    pub fn new() -> Self {
+    pub fn new(db_path: &str) -> Self {
         let app_name = "DEX";
-        let db = sled::open(DEX_DATABASE).expect("Cannot dex open database.");
+        let db = sled::open(db_path).expect("Cannot dex open database.");
         let pools: HashMap<String, (u128, u128)> = match db.get(DEX_KEY) {
             Ok(mb_cache) => {
                 let cache = mb_cache.unwrap_or(IVec::default());

@@ -12,4 +12,3 @@ pub const CURRENCIES: [&str; 140] = [
     "BTC", "XRP", "AUD", "BGN", "JOD", "GBP", "ETH", "EUR", "LTC", "NZD",
 ];
 pub const CURRENCIES_KEY: &str = "RATES";
-pub const CURRENCIES_DATABASE: &str = "/tmp/zilpay/currencies";
