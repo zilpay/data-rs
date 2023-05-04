@@ -34,7 +34,7 @@ struct ResPoolState {
 impl Dex {
     pub fn new(db_path: &str) -> Self {
         let app_name = "DEX";
-        let db = sled::open(db_path).expect("Cannot dex open database.");
+        let db = sled::open(format!("{}/{}", db_path, DEX_KEY)).expect("Cannot dex open database.");
         let pools: HashMap<String, (u128, u128)> = match db.get(DEX_KEY) {
             Ok(mb_cache) => {
                 let cache = mb_cache.unwrap_or(IVec::default());

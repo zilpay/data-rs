@@ -49,7 +49,8 @@ pub struct Meta {
 impl Meta {
     pub fn new(db_path: &str) -> Self {
         let app_name = "META";
-        let db = sled::open(db_path).expect("Cannot meta open database.");
+        let db =
+            sled::open(format!("{}/{}", db_path, META_KEY)).expect("Cannot meta open database.");
         let list = match db.get(META_KEY) {
             Ok(mb_cache) => {
                 let cache = mb_cache.unwrap_or(IVec::default());

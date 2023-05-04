@@ -2,7 +2,6 @@ use crate::models::meta::Meta;
 use bytes::Bytes;
 use http_body_util::BodyExt;
 use http_body_util::Full;
-use hyper::http::HeaderValue;
 use hyper::{header, Request, Response, StatusCode};
 use serde_json::Value;
 use serde_json::{self, json};

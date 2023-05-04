@@ -22,7 +22,8 @@ struct APIResponse {
 impl Currencies {
     pub fn new(db_path: &str) -> Self {
         let app_name = "RATES";
-        let db = sled::open(db_path).expect("Cannot open currencies database.");
+        let db = sled::open(format!("{}/{}", db_path, CURRENCIES_KEY))
+            .expect("Cannot open currencies database.");
         let data = match db.get(CURRENCIES_KEY) {
             Ok(mb_cache) => {
                 let cache = mb_cache.unwrap_or(IVec::default());
