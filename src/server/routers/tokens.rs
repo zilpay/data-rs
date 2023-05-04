@@ -3,10 +3,8 @@ use bytes::Bytes;
 use http_body_util::BodyExt;
 use http_body_util::Full;
 use hyper::{header, Request, Response, StatusCode};
-use serde_json::map::Values;
 use serde_json::Value;
 use serde_json::{self, json};
-use std::iter::Map;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -103,8 +101,7 @@ pub async fn handle_update_token(
                 "message": format!("No token {}", symbol)
             });
             let not_found = serde_json::to_string(&res).unwrap();
-            let response = Response::builder()
-                .header(header::CONTENT_TYPE, "application/json")
+            let response = response
                 .status(StatusCode::NOT_FOUND)
                 .body(Full::new(Bytes::from(not_found)))
                 .unwrap();
@@ -152,15 +149,11 @@ pub async fn handle_update_token(
         }
     };
 
-    let res = json!({
-        "code": -1,
-        "message": format!("No token {}", symbol)
-    });
-    let not_found = serde_json::to_string(&res).unwrap();
-    let response = Response::builder()
-        .header(header::CONTENT_TYPE, "application/json")
-        .status(StatusCode::NOT_FOUND)
-        .body(Full::new(Bytes::from(not_found)))
+    let res = json!({ "message": format!("updated token {}", symbol) });
+    let ok = serde_json::to_string(&res).unwrap();
+    let response = response
+        .status(StatusCode::OK)
+        .body(Full::new(Bytes::from(ok)))
         .unwrap();
 
     return Ok(response);
