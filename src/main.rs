@@ -18,6 +18,10 @@ async fn main() {
         .unwrap();
 
     let db_path = std::env::var("DB_PATH").expect("Incorrect DB_PATH env var");
+    let port: u16 = std::env::var("PORT")
+        .expect("ENV var PORT is required")
+        .parse()
+        .expect("ENV var PORT should be u16 number");
 
     let meta = Arc::new(RwLock::new(Meta::new(&db_path)));
     let rates = Arc::new(RwLock::new(Currencies::new(&db_path)));
@@ -103,7 +107,7 @@ async fn main() {
     let dex_ref0 = Arc::clone(&dex);
     let rates_ref0 = Arc::clone(&rates);
 
-    run_server(&meta_ref0, &dex_ref0, &rates_ref0)
+    run_server(&meta_ref0, &dex_ref0, &rates_ref0, port)
         .await
         .unwrap();
 }

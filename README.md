@@ -18,6 +18,7 @@ The following environment variable is required to run the server:
 
  * ACCESS_TOKEN: The access token to authenticate requests to the token updates endpoint.
  * DB_PATH: The path of the database filesystem.
+ * PORT: The http server port. 
 
 Configuration Files
 
