@@ -125,6 +125,12 @@ impl Meta {
         );
 
         self.list.extend(new_tokens);
+        self.write_db()?;
+
+        Ok(())
+    }
+
+    pub fn write_db(&self) -> Result<(), Error> {
         self.db.insert(META_KEY, self.serializatio().as_bytes())?;
 
         Ok(())

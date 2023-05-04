@@ -55,6 +55,7 @@ async fn main() {
                     let dex = meta_dex_ref.read().await;
 
                     unwarp_meta.listed_tokens_update(&dex);
+                    unwarp_meta.write_db().unwrap(); // TODO: make Error hanlder.
                 }
                 Err(e) => {
                     error!("tokens update: {:?}", e);
