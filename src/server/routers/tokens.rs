@@ -2,6 +2,7 @@ use crate::models::meta::Meta;
 use bytes::Bytes;
 use http_body_util::BodyExt;
 use http_body_util::Full;
+use hyper::http::HeaderValue;
 use hyper::{header, Request, Response, StatusCode};
 use serde_json::Value;
 use serde_json::{self, json};
@@ -49,7 +50,27 @@ pub async fn handle_update_token(
     req: Request<hyper::body::Incoming>,
     meta: Arc<RwLock<Meta>>,
 ) -> Result<Response<Full<Bytes>>, hyper::Error> {
+    let access_token = std::env::var("ACCESS_TOKEN").unwrap_or("666".to_string());
+    let header_token = match req.headers().get("Authorization") {
+        Some(value) => value.to_str().unwrap_or(""),
+        None => "",
+    };
     let response = Response::builder().header(header::CONTENT_TYPE, "application/json");
+
+    if access_token != header_token {
+        let res = json!({
+            "code": -5,
+            "message": "Incorrect atuh token"
+        });
+        let res_json = serde_json::to_string(&res).unwrap();
+        let response = response
+            .status(StatusCode::NETWORK_AUTHENTICATION_REQUIRED)
+            .body(Full::new(Bytes::from(res_json)))
+            .unwrap();
+
+        return Ok(response);
+    }
+
     let params = req.uri().path().split("/").collect::<Vec<&str>>();
     let symbol = params.last().unwrap_or(&"").clone().to_lowercase();
     let body_bytes = req.collect().await?.to_bytes();
