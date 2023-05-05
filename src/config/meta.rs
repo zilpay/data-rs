@@ -10,5 +10,5 @@ pub const TOKENS_EXCEPTIONS: [[&str; 2]; 2] = [
 ];
 pub const MIN_SCORE: u8 = 20;
 pub const CRYPTO_META_URL: &str =
-    "https://raw.githubusercontent.com/Ashlar/cryptometa/master/src/full.json";
+    "https://raw.githubusercontent.com/ViewBlock/cryptometa/master/src/full.json";
 pub const META_KEY: &str = "META";
