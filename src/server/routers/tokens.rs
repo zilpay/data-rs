@@ -23,6 +23,8 @@ pub async fn handle_get_tokens(
         }
     }
 
+    tokens.sort_by(|a, b| b.score.cmp(&a.score));
+
     let tokens_res = ListedTokens {
         count: tokens.len(),
         list: tokens,
