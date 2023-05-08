@@ -129,13 +129,13 @@ impl Meta {
         );
 
         self.list.extend(new_tokens);
-        self.list.sort_by(|a, b| b.scope.cmp(&a.scope));
         self.write_db()?;
 
         Ok(())
     }
 
-    pub fn write_db(&self) -> Result<(), Error> {
+    pub fn write_db(&mut self) -> Result<(), Error> {
+        self.list.sort_by(|a, b| b.scope.cmp(&a.scope));
         self.db.insert(META_KEY, self.serializatio().as_bytes())?;
 
         Ok(())
