@@ -34,7 +34,7 @@ async fn main() {
 
     tokio::task::spawn(async move {
         loop {
-            tokio::time::sleep(Duration::from_secs(30)).await;
+            tokio::time::sleep(Duration::from_secs(50)).await;
 
             let zil = Zilliqa::new();
             let tokens = match Meta::get_meta_tokens().await {
@@ -74,7 +74,7 @@ async fn main() {
 
     tokio::task::spawn(async move {
         loop {
-            tokio::time::sleep(Duration::from_secs(10)).await;
+            tokio::time::sleep(Duration::from_secs(20)).await;
 
             match Currencies::fetch_rates().await {
                 Ok(rates) => {
