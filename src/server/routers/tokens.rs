@@ -3,6 +3,9 @@ use crate::models::meta::Token;
 use bytes::Bytes;
 use http_body_util::BodyExt;
 use http_body_util::Full;
+use hyper::header::ACCESS_CONTROL_ALLOW_METHODS;
+use hyper::header::ACCESS_CONTROL_ALLOW_ORIGIN;
+use hyper::http::HeaderValue;
 use hyper::{header, Request, Response, StatusCode};
 use serde_json::Value;
 use serde_json::{self, json};
@@ -58,10 +61,18 @@ pub async fn handle_get_tokens(
     };
 
     let res_json = serde_json::to_string(&tokens_res).unwrap();
-    let response = Response::builder()
+    let mut response = Response::builder()
         .header(header::CONTENT_TYPE, "application/json")
         .body(Full::new(Bytes::from(res_json)))
         .unwrap();
+
+    response
+        .headers_mut()
+        .insert(ACCESS_CONTROL_ALLOW_ORIGIN, HeaderValue::from_static("*"));
+    response.headers_mut().insert(
+        ACCESS_CONTROL_ALLOW_METHODS,
+        HeaderValue::from_static("GET"),
+    );
 
     Ok(response)
 }
