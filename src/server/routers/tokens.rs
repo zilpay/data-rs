@@ -6,6 +6,7 @@ use http_body_util::Full;
 use hyper::{header, Request, Response, StatusCode};
 use serde_json::Value;
 use serde_json::{self, json};
+use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -16,17 +17,41 @@ pub async fn handle_get_tokens(
     meta: Arc<RwLock<Meta>>,
 ) -> Result<Response<Full<Bytes>>, hyper::Error> {
     let mut tokens: Vec<Token> = Vec::new();
-    let limit = 0;
-    let offset = 0;
+    let mut params_map = HashMap::new();
+    let query_params = req.uri().query().unwrap_or("");
+    let parsed_params = url::form_urlencoded::parse(query_params.as_bytes());
+
+    for (key, value) in parsed_params {
+        params_map.insert(key.into_owned(), value.into_owned());
+    }
+
+    let limit: usize = params_map
+        .get("limit")
+        .unwrap_or(&"20".to_string())
+        .parse()
+        .unwrap_or(20);
+    let token_type: u8 = params_map
+        .get("type")
+        .unwrap_or(&"1".to_string())
+        .parse()
+        .unwrap_or(1);
+    let offset: usize = params_map
+        .get("offset")
+        .unwrap_or(&"0".to_string())
+        .parse()
+        .unwrap_or(0);
 
     for token in meta.read().await.list.iter() {
-        if token.token_type == 1 && token.status == 1 {
+        if token.token_type == token_type && token.status == 1 {
             tokens.push(token.clone());
         }
     }
 
-    tokens.sort_by(|a, b| b.score.cmp(&a.score));
-
+    let tokens = tokens
+        .into_iter()
+        .skip(offset)
+        .take(limit)
+        .collect::<Vec<Token>>();
     let tokens_res = ListedTokens {
         count: tokens.len(),
         list: tokens,

@@ -129,6 +129,7 @@ impl Meta {
         );
 
         self.list.extend(new_tokens);
+        self.list.sort_by(|a, b| b.score.cmp(&a.score));
         self.write_db()?;
 
         Ok(())
