@@ -23,7 +23,7 @@ use super::dex::Dex;
 pub struct Token {
     pub bech32: String,
     pub base16: String,
-    pub score: u8,
+    pub scope: u8,
     pub name: String,
     pub symbol: String,
     pub token_type: u8, // 1 = ZRC1, 2 = ZRC2
@@ -101,7 +101,7 @@ impl Meta {
                     None => (),
                 }
 
-                let (bech32, score, _) = match tokens.iter().find(|(_, _, b16)| {
+                let (bech32, scope, _) = match tokens.iter().find(|(_, _, b16)| {
                     *b16.to_lowercase() == *base16.replace("0x", "").to_lowercase()
                 }) {
                     Some(f) => f.clone(),
@@ -116,7 +116,7 @@ impl Meta {
                     name,
                     symbol,
                     token_type,
-                    score,
+                    scope,
                     listed,
                 })
             })
@@ -129,7 +129,7 @@ impl Meta {
         );
 
         self.list.extend(new_tokens);
-        self.list.sort_by(|a, b| b.score.cmp(&a.score));
+        self.list.sort_by(|a, b| b.scope.cmp(&a.scope));
         self.write_db()?;
 
         Ok(())

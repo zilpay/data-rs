@@ -48,7 +48,7 @@ pub async fn handle_get_pools(
         name: String::from("Zilliqa"),
         token_type: 1,
         status: 1,
-        score: 100,
+        scope: 100,
         listed: true,
     };
 

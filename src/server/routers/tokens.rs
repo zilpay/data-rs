@@ -202,7 +202,7 @@ pub async fn handle_update_token(
             new_score as u8
         };
 
-        token_meta.list[token_index].score = new_score;
+        token_meta.list[token_index].scope = new_score;
     }
     if let Some(listed) = listed {
         let new_listed = listed.as_bool().unwrap_or(false);
