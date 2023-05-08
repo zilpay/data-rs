@@ -128,7 +128,7 @@ pub async fn handle_update_token(
     if access_token != header_token {
         let res = json!({
             "code": -5,
-            "message": "Incorrect atuh token"
+            "message": format!("Incorrect atuh token {header_token}")
         });
         let res_json = serde_json::to_string(&res).unwrap();
         let response = response
