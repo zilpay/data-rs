@@ -8,7 +8,7 @@ pub const TOKENS_EXCEPTIONS: [[&str; 2]; 2] = [
         "zil1zu72vac254htqpg3mtywdcfm84l3dfd9qzww8t",
     ],
 ];
-pub const MIN_SCORE: u8 = 20;
+pub const MIN_SCORE: u8 = 5;
 pub const CRYPTO_META_URL: &str =
     "https://raw.githubusercontent.com/ViewBlock/cryptometa/master/src/full.json";
 pub const META_KEY: &str = "META";

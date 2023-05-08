@@ -20,6 +20,7 @@ pub async fn route(
     match (req.method(), req.uri().path()) {
         (&hyper::Method::GET, "/api/v1/dex") => dex::handle_get_pools(req, meta, dex, rates).await,
         (&hyper::Method::GET, "/api/v1/rates") => rates::handle_get_rates(req, rates).await,
+        (&hyper::Method::GET, "/api/v1/tokens") => tokens::handle_get_tokens(req, meta).await,
         (&hyper::Method::GET, path) if path.starts_with("/api/v1/token/") => {
             tokens::handle_get_token(req, meta).await
         }

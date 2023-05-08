@@ -1,4 +1,5 @@
 use crate::models::meta::Meta;
+use crate::models::meta::Token;
 use bytes::Bytes;
 use http_body_util::BodyExt;
 use http_body_util::Full;
@@ -7,6 +8,34 @@ use serde_json::Value;
 use serde_json::{self, json};
 use std::sync::Arc;
 use tokio::sync::RwLock;
+
+use super::dex::ListedTokens;
+
+pub async fn handle_get_tokens(
+    req: Request<hyper::body::Incoming>,
+    meta: Arc<RwLock<Meta>>,
+) -> Result<Response<Full<Bytes>>, hyper::Error> {
+    let mut tokens: Vec<Token> = Vec::new();
+
+    for token in meta.read().await.list.iter() {
+        if token.token_type == 1 && token.status == 1 {
+            tokens.push(token.clone());
+        }
+    }
+
+    let tokens_res = ListedTokens {
+        count: tokens.len(),
+        list: tokens,
+    };
+
+    let res_json = serde_json::to_string(&tokens_res).unwrap();
+    let response = Response::builder()
+        .header(header::CONTENT_TYPE, "application/json")
+        .body(Full::new(Bytes::from(res_json)))
+        .unwrap();
+
+    Ok(response)
+}
 
 pub async fn handle_get_token(
     req: Request<hyper::body::Incoming>,

@@ -92,15 +92,18 @@ impl Meta {
                 };
 
                 // Skip Already has tokens
-                match self.list.iter().find(|t| t.base16 == base16) {
+                match self
+                    .list
+                    .iter()
+                    .find(|t| t.base16.to_lowercase() == base16.to_lowercase())
+                {
                     Some(_) => return None,
                     None => (),
                 }
 
-                let (bech32, score, _) = match tokens
-                    .iter()
-                    .find(|(_, _, base16)| base16.replace("0x", "") == *base16)
-                {
+                let (bech32, score, _) = match tokens.iter().find(|(_, _, b16)| {
+                    *b16.to_lowercase() == *base16.replace("0x", "").to_lowercase()
+                }) {
                     Some(f) => f.clone(),
                     None => return None,
                 };

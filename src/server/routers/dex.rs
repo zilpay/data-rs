@@ -13,9 +13,9 @@ use crate::models::{
 };
 
 #[derive(Debug, Serialize)]
-struct ListedTokens {
-    count: usize,
-    list: Vec<Token>,
+pub struct ListedTokens {
+    pub count: usize,
+    pub list: Vec<Token>,
 }
 
 #[derive(Debug, Serialize)]
