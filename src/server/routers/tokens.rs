@@ -16,6 +16,8 @@ pub async fn handle_get_tokens(
     meta: Arc<RwLock<Meta>>,
 ) -> Result<Response<Full<Bytes>>, hyper::Error> {
     let mut tokens: Vec<Token> = Vec::new();
+    let limit = 0;
+    let offset = 0;
 
     for token in meta.read().await.list.iter() {
         if token.token_type == 1 && token.status == 1 {
