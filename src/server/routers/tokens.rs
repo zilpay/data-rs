@@ -206,12 +206,7 @@ pub async fn handle_update_token(
         token_meta.list[token_index].status = new_status;
     }
     if let Some(score) = score {
-        let new_score = score.as_u64().unwrap_or(0);
-        let new_score: u8 = if new_score > 100 {
-            100
-        } else {
-            new_score as u8
-        };
+        let new_score: u8 = score.as_u64().unwrap_or(0) as u8;
 
         token_meta.list[token_index].scope = new_score;
     }
