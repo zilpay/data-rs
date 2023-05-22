@@ -207,7 +207,7 @@ pub async fn handle_update_token(
         token_meta.list[token_index].status = new_status;
     }
     if let Some(symbol) = symbol {
-        let new_symbol = symbol.to_string();
+        let new_symbol = symbol.as_str().unwrap_or("").to_string();
 
         token_meta.list[token_index].symbol = new_symbol;
     }
