@@ -30,9 +30,9 @@ pub async fn handle_get_tokens(
 
     let limit: usize = params_map
         .get("limit")
-        .unwrap_or(&"20".to_string())
+        .unwrap_or(&"200".to_string())
         .parse()
-        .unwrap_or(20);
+        .unwrap_or(200);
     let token_type: u8 = params_map
         .get("type")
         .unwrap_or(&"1".to_string())
@@ -140,7 +140,7 @@ pub async fn handle_update_token(
     }
 
     let params = req.uri().path().split("/").collect::<Vec<&str>>();
-    let symbol = params.last().unwrap_or(&"").clone().to_lowercase();
+    let base16 = params.last().unwrap_or(&"").clone().to_lowercase();
     let body_bytes = req.collect().await?.to_bytes();
     let value: Value = match serde_json::from_slice(&body_bytes) {
         Ok(v) => v,
@@ -177,17 +177,18 @@ pub async fn handle_update_token(
     let status = map.get("status");
     let score = map.get("score");
     let listed = map.get("listed");
+    let symbol = map.get("symbol");
     let mut token_meta = meta.write().await;
     let token_index = match token_meta
         .list
         .iter()
-        .position(|t| t.symbol.to_lowercase() == symbol)
+        .position(|t| t.base16.to_lowercase() == base16)
     {
         Some(index) => index,
         None => {
             let res = json!({
                 "code": -1,
-                "message": format!("No token {}", symbol)
+                "message": format!("No token {}", base16)
             });
             let not_found = serde_json::to_string(&res).unwrap();
             let response = response
@@ -204,6 +205,11 @@ pub async fn handle_update_token(
         let new_status: u8 = if new_status > 1 { 1 } else { new_status as u8 };
 
         token_meta.list[token_index].status = new_status;
+    }
+    if let Some(symbol) = symbol {
+        let new_symbol = symbol.to_string();
+
+        token_meta.list[token_index].symbol = new_symbol;
     }
     if let Some(score) = score {
         let new_score: u8 = score.as_u64().unwrap_or(0) as u8;
@@ -233,7 +239,7 @@ pub async fn handle_update_token(
         }
     };
 
-    let res = json!({ "message": format!("updated token {}", symbol) });
+    let res = json!({ "message": format!("updated token {}", base16) });
     let ok = serde_json::to_string(&res).unwrap();
     let response = response
         .status(StatusCode::OK)
