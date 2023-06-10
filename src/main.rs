@@ -35,12 +35,9 @@ async fn main() {
     {
         let zil = Zilliqa::new();
         let mut shit_wallet = ShitWallet::new(&db_path);
-
         // let n = shit_wallet.later_block(&zil).await.unwrap();
 
-        shit_wallet
-            .get_block_body(&zil, shit_wallet.current_block)
-            .await;
+        shit_wallet.get_block_body(&zil, 2931306).await;
 
         // shit_wallet.update_block(n).unwrap();
 

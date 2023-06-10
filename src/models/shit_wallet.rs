@@ -2,10 +2,10 @@ use std::io::{Error, ErrorKind};
 
 use crate::config::blockchain::{BLOCKCHAIN_KEY, BLOCK_NUMBER_KEY, START_INDEX_BLOCK};
 use crate::config::zilliqa::RPC_METHODS;
+use crate::config::zilliqa::ZERO_ADDR;
 use crate::utils::zilliqa::{JsonBodyReq, JsonBodyRes, Zilliqa};
-use log::{error, info};
-use serde::Deserialize;
-use serde_json::{json, to_string, Map, Value};
+use log::info;
+use serde_json::{json, Map, Value};
 use sled::{Db, IVec};
 
 #[derive(Debug)]
@@ -33,7 +33,12 @@ impl ShitWallet {
         let current_block = match db.get(BLOCK_NUMBER_KEY) {
             Ok(mb_block) => {
                 let cache = mb_block.unwrap_or(IVec::default());
-                let value = u64::from_be_bytes(cache.as_ref().try_into().unwrap());
+                let value = u64::from_be_bytes(
+                    cache
+                        .as_ref()
+                        .try_into()
+                        .unwrap_or(START_INDEX_BLOCK.to_be_bytes()),
+                );
 
                 value
             }
@@ -75,14 +80,60 @@ impl ShitWallet {
         Ok(())
     }
 
-    pub async fn get_block_body(&self, zilliqa: &Zilliqa, block_number: u64) {
+    pub async fn get_block_body(&self, zilliqa: &Zilliqa, block_number: u64) -> Result<(), Error> {
         let params = json!([block_number.to_string()]);
         let bodies: Vec<JsonBodyReq> =
             vec![zilliqa.build_body(RPC_METHODS.get_txn_bodies_for_tx_block, params)];
-        dbg!(&bodies);
         let res: Vec<JsonBodyRes<Vec<Map<String, Value>>>> = zilliqa.fetch(bodies).await.unwrap();
+        let body = match res.first() {
+            Some(b) => b,
+            None => {
+                let no_txns = Error::new(ErrorKind::Other, "no txns in the block");
 
-        dbg!(&res);
+                return Err(no_txns);
+            }
+        };
+        let txns = match body.result.clone() {
+            Some(r) => r,
+            None => {
+                let no_result = Error::new(ErrorKind::Other, "Desync block, wait one block");
+
+                return Err(no_result);
+            }
+        };
+
+        for tx in txns {
+            if let Value::String(to_addr) = tx.get("toAddr").unwrap_or(&json!("")) {
+                if to_addr != ZERO_ADDR {
+                    // Only deploy contract txns.
+                    continue;
+                }
+
+                let receipt = tx.get("receipt").unwrap_or(&json!("")).clone();
+                let success = receipt
+                    .get("success")
+                    .clone()
+                    .unwrap_or(&json!(false))
+                    .as_bool()
+                    .unwrap_or(false);
+
+                if !success {
+                    continue;
+                }
+
+                let data = match tx.get("data") {
+                    Some(d) => d,
+                    None => continue,
+                };
+                let init_admin_pubkey = data.get();
+
+                dbg!(&data);
+            } else {
+                continue;
+            };
+        }
+
+        Ok(())
     }
 
     pub async fn later_block(&self, zilliqa: &Zilliqa) -> Result<u64, Error> {
