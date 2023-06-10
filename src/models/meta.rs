@@ -37,6 +37,9 @@ pub struct ContractInit {
     #[serde(flatten)]
     pub value: serde_json::Value,
     pub vname: String,
+
+    #[serde(rename = "type")]
+    pub field_type: String,
 }
 
 #[derive(Debug)]

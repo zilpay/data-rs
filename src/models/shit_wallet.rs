@@ -3,6 +3,7 @@ use std::io::{Error, ErrorKind};
 use crate::config::blockchain::{BLOCKCHAIN_KEY, BLOCK_NUMBER_KEY, START_INDEX_BLOCK};
 use crate::config::zilliqa::RPC_METHODS;
 use crate::config::zilliqa::ZERO_ADDR;
+use crate::models::meta::ContractInit;
 use crate::utils::zilliqa::{JsonBodyReq, JsonBodyRes, Zilliqa};
 use log::info;
 use serde_json::{json, Map, Value};
@@ -121,13 +122,16 @@ impl ShitWallet {
                     continue;
                 }
 
-                let data = match tx.get("data") {
+                let init = match tx.get("data") {
                     Some(d) => d,
                     None => continue,
                 };
-                let init_admin_pubkey = data.get();
+                let init_admin_pubkey = match self.get_pub_from_init(init) {
+                    Ok(key) => key,
+                    Err(_) => continue,
+                };
 
-                dbg!(&data);
+                dbg!(init_admin_pubkey);
             } else {
                 continue;
             };
@@ -163,5 +167,35 @@ impl ShitWallet {
             Ok(n) => Ok(n),
             Err(_) => Err(custom_error),
         }
+    }
+
+    fn get_pub_from_init(&self, raw: &Value) -> Result<String, Error> {
+        let broken_init = Error::new(ErrorKind::Other, "Fail to parse init with pubKey");
+
+        if let Value::String(json) = raw {
+            let parsed_json: Value = serde_json::from_str(json)?;
+
+            if let Value::Array(list) = parsed_json {
+                for init in list {
+                    if init.get("vname").unwrap_or(&json!("")) == &json!("init_admin_pubkey") {
+                        if let Value::String(pub_key) = init.get("value").unwrap_or(&json!("")) {
+                            if pub_key.len() < 68 {
+                                return Err(broken_init);
+                            }
+
+                            return Ok(pub_key.to_owned());
+                        } else {
+                            return Err(broken_init);
+                        }
+                    }
+                }
+            }
+        } else {
+            let custom_error = Error::new(ErrorKind::Other, "Fail to parse init");
+
+            return Err(custom_error);
+        }
+
+        Err(broken_init)
     }
 }
