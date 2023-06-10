@@ -1,4 +1,6 @@
 use crate::config::zilliqa::{CHARSET, HRP};
+use sha2::{Digest, Sha256};
+use std::io::{Error, ErrorKind};
 
 pub const GENERATOR: [u32; 5] = [0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3];
 
@@ -120,6 +122,26 @@ pub fn encode(hrp: &str, data: &Vec<u8>) -> String {
     ret
 }
 
+pub fn get_address_from_public_key(public_key: &str) -> Result<String, Error> {
+    let normalized = match hex::decode(public_key.to_lowercase().replace("0x", "")) {
+        Ok(h) => h,
+        Err(_) => {
+            let pub_key_err = Error::new(ErrorKind::Other, "Invalid pub_key");
+
+            return Err(pub_key_err);
+        }
+    };
+    let mut hasher = Sha256::new();
+
+    hasher.update(normalized);
+
+    let hash_result = hasher.finalize();
+    let hex_string = hex::encode(hash_result);
+    let sliced_hex = &hex_string[24..];
+
+    Ok(sliced_hex.to_string())
+}
+
 pub fn convert_bits(data: &Vec<u8>, from_width: u32, to_width: u32, pad: bool) -> Option<Vec<u8>> {
     let mut acc: u32 = 0;
     let mut bits: u32 = 0;
@@ -180,6 +202,14 @@ fn test_polymod() {
     let res = polymod(&bytes);
 
     assert_eq!(98216235, res);
+}
+
+#[test]
+fn test_addr_from_pub_key() {
+    let public_key = "0x0308518cf944ece57f0bedc155deb093e1fb8f73aadbd025687a0409cae9ed19b1";
+    let addr = get_address_from_public_key(public_key).unwrap();
+
+    assert_eq!(addr, "8885906da076a450138ff794796530a34b958b91");
 }
 
 #[test]

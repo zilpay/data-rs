@@ -3,7 +3,6 @@ use std::io::{Error, ErrorKind};
 use crate::config::blockchain::{BLOCKCHAIN_KEY, BLOCK_NUMBER_KEY, START_INDEX_BLOCK};
 use crate::config::zilliqa::RPC_METHODS;
 use crate::config::zilliqa::ZERO_ADDR;
-use crate::models::meta::ContractInit;
 use crate::utils::zilliqa::{JsonBodyReq, JsonBodyRes, Zilliqa};
 use log::info;
 use serde_json::{json, Map, Value};
