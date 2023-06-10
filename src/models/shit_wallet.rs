@@ -75,11 +75,12 @@ impl ShitWallet {
         Ok(())
     }
 
-    pub async fn get_block_body(&self, zilliqa: &Zilliqa, block_number: u16) {
+    pub async fn get_block_body(&self, zilliqa: &Zilliqa, block_number: u64) {
         let params = json!([block_number.to_string()]);
         let bodies: Vec<JsonBodyReq> =
             vec![zilliqa.build_body(RPC_METHODS.get_txn_bodies_for_tx_block, params)];
-        let res: Vec<JsonBodyRes<Map<String, Value>>> = zilliqa.fetch(bodies).await.unwrap();
+        dbg!(&bodies);
+        let res: Vec<JsonBodyRes<Vec<Map<String, Value>>>> = zilliqa.fetch(bodies).await.unwrap();
 
         dbg!(&res);
     }
