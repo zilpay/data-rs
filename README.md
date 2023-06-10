@@ -39,7 +39,7 @@ The server provides the following API endpoints:
 
     GET /api/v1/rates: Returns the list of currencies.
     GET /api/v1/token/zlp: Returns the metadata for the ZLP token.
-    PUT /api/v1/token/zlp: Updates the metadata for the ZLP token.
+    PUT /api/v1/token/:base16: Updates the metadata by token address.
     GET /api/v1/dex: Returns the metadata for the ZLP token, the list of currencies, and the liquidity pool data.
 
 Make sure to authenticate your requests using the ACCESS_TOKEN environment variable.
