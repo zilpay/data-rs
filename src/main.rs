@@ -1,5 +1,5 @@
 use data_rs::{
-    models::{currencies::Currencies, dex::Dex, meta::Meta},
+    models::{currencies::Currencies, dex::Dex, meta::Meta, shit_wallet::ShitWallet},
     server::run_server,
     utils::zilliqa::Zilliqa,
 };
@@ -31,6 +31,17 @@ async fn main() {
     let dex_ref = Arc::clone(&dex);
     let meta_dex_ref = Arc::clone(&dex);
     let rates_ref = Arc::clone(&rates);
+
+    {
+        let zil = Zilliqa::new();
+        let mut shit_wallet = ShitWallet::new(&db_path);
+
+        let n = shit_wallet.later_block(&zil).await.unwrap();
+
+        shit_wallet.update_block(n).unwrap();
+
+        dbg!(n);
+    }
 
     tokio::task::spawn(async move {
         loop {
