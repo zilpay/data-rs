@@ -93,10 +93,10 @@ impl ShitWallet {
     }
 
     pub async fn get_block_body(
-        &self,
         zilliqa: &Zilliqa,
         block_number: u64,
     ) -> Result<Vec<(String, String)>, Error> {
+        let mut mb_wallets: Vec<(String, String)> = Vec::new();
         let params = json!([block_number.to_string()]);
         let bodies: Vec<JsonBodyReq> =
             vec![zilliqa.build_body(RPC_METHODS.get_txn_bodies_for_tx_block, params)];
@@ -112,13 +112,26 @@ impl ShitWallet {
         let txns = match body.result.clone() {
             Some(r) => r,
             None => {
-                let no_result = Error::new(ErrorKind::Other, "Desync block, wait one block");
+                if let Some(err) = &body.error {
+                    let error_code = err
+                        .get("code")
+                        .unwrap_or(&json!("0"))
+                        .clone()
+                        .as_i64()
+                        .unwrap_or(0);
+
+                    if error_code == -1 {
+                        // SKIP if block doesn't have any txns...
+                        return Ok(mb_wallets);
+                    }
+                }
+
+                let message = format!("fail to get result: {:?}", &body);
+                let no_result = Error::new(ErrorKind::Other, message);
 
                 return Err(no_result);
             }
         };
-
-        let mut mb_wallets: Vec<(String, String)> = Vec::new();
 
         for tx in txns {
             if let Value::String(to_addr) = tx.get("toAddr").unwrap_or(&json!("")) {
@@ -143,7 +156,7 @@ impl ShitWallet {
                     Some(d) => d,
                     None => continue,
                 };
-                let init_admin_pubkey = match self.get_pub_from_init(init) {
+                let init_admin_pubkey = match ShitWallet::get_pub_from_init(init) {
                     Ok(key) => key,
                     Err(_) => continue,
                 };
@@ -176,7 +189,7 @@ impl ShitWallet {
         zil: &Zilliqa,
         block_number: u64,
     ) -> Result<Vec<(String, String)>, Error> {
-        let wallets = self.get_block_body(&zil, block_number).await?;
+        let wallets = ShitWallet::get_block_body(&zil, block_number).await?;
         let req_bodies: Vec<JsonBodyReq> = wallets
             .iter()
             .map(|(hash, _)| {
@@ -201,7 +214,7 @@ impl ShitWallet {
         Ok(shit_wallets)
     }
 
-    pub async fn later_block(&self, zilliqa: &Zilliqa) -> Result<u64, Error> {
+    pub async fn get_later_block(zilliqa: &Zilliqa) -> Result<u64, Error> {
         let custom_error = Error::new(ErrorKind::Other, "Fail to fetch or parse blockchain info");
         let params = json!([]);
         let bodies: Vec<JsonBodyReq> =
@@ -230,7 +243,7 @@ impl ShitWallet {
         }
     }
 
-    fn get_pub_from_init(&self, raw: &Value) -> Result<String, Error> {
+    fn get_pub_from_init(raw: &Value) -> Result<String, Error> {
         let broken_init = Error::new(ErrorKind::Other, "Fail to parse init with pubKey");
 
         if let Value::String(json) = raw {

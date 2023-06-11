@@ -1,7 +1,7 @@
 pub const PROVIDERS: [&str; 3] = [
+    "https://api.zilliqa.com",
     "https://ssn.zilpay.io/api",
     "https://zilliqa.avely.fi/api",
-    "https://api.zilliqa.com",
 ];
 pub const CHARSET: &str = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
 pub const ZERO_ADDR: &str = "0000000000000000000000000000000000000000";

@@ -3,7 +3,7 @@ use data_rs::{
     server::run_server,
     utils::zilliqa::Zilliqa,
 };
-use log::{error, LevelFilter};
+use log::{error, info, LevelFilter};
 use simple_logger::SimpleLogger;
 use std::{sync::Arc, time::Duration};
 use tokio;
@@ -26,23 +26,60 @@ async fn main() {
     let meta = Arc::new(RwLock::new(Meta::new(&db_path)));
     let rates = Arc::new(RwLock::new(Currencies::new(&db_path)));
     let dex = Arc::new(RwLock::new(Dex::new(&db_path)));
+    let shit_wallet = Arc::new(RwLock::new(ShitWallet::new(&db_path)));
 
     let meta_ref = Arc::clone(&meta);
     let dex_ref = Arc::clone(&dex);
     let meta_dex_ref = Arc::clone(&dex);
     let rates_ref = Arc::clone(&rates);
+    let shit_wallet_ref = Arc::clone(&shit_wallet);
 
-    {
-        let zil = Zilliqa::new();
-        let mut shit_wallet = ShitWallet::new(&db_path);
-        // let n = shit_wallet.later_block(&zil).await.unwrap();
-        //
-        // let wallets = shit_wallet.fetch_wallets(&zil, 2931306).await.unwrap();
+    tokio::task::spawn(async move {
+        loop {
+            tokio::time::sleep(Duration::from_secs(5)).await;
 
-        // shit_wallet.update_wallets(wallets).unwrap();
+            let zil = Zilliqa::new();
+            let instance = shit_wallet_ref.read().await;
+            let current_block = instance.current_block.clone();
 
-        dbg!(&shit_wallet.wallets);
-    }
+            drop(instance);
+
+            let last_block = match ShitWallet::get_later_block(&zil).await {
+                Ok(n) => n,
+                Err(err) => {
+                    error!("try get last block error: {:?}", err);
+
+                    continue;
+                }
+            };
+
+            for index in current_block..last_block {
+                let hash_addr_list = match ShitWallet::get_block_body(&zil, index).await {
+                    Ok(value) => value,
+                    Err(e) => {
+                        error!("try get body from block: {:?}, error: {:?}", index, e);
+
+                        shit_wallet_ref.write().await.update_block(index).unwrap();
+
+                        break;
+                    }
+                };
+                let number_of_shits = hash_addr_list.len();
+
+                if number_of_shits == 0 {
+                    shit_wallet_ref.write().await.update_block(index).unwrap();
+                    continue;
+                }
+
+                let mut instance = shit_wallet_ref.write().await;
+
+                instance.update_wallets(hash_addr_list).unwrap();
+                instance.update_block(index).unwrap();
+
+                info!("added and update shit-wallets: {:?}", number_of_shits);
+            }
+        }
+    });
 
     tokio::task::spawn(async move {
         loop {

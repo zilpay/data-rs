@@ -3,7 +3,7 @@ use reqwest::header::{HeaderMap, CONTENT_TYPE};
 use reqwest::Client;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{Map, Value};
 use std::io;
 
 #[derive(Serialize, Debug)]
@@ -17,6 +17,7 @@ pub struct JsonBodyReq {
 #[derive(Deserialize, Debug)]
 pub struct JsonBodyRes<T> {
     pub result: Option<T>,
+    pub error: Option<Map<String, Value>>,
 }
 
 #[derive(Debug)]
@@ -66,7 +67,9 @@ impl Zilliqa {
             };
 
             match response.json().await {
-                Ok(res) => return Ok(res),
+                Ok(res) => {
+                    return Ok(res);
+                }
                 Err(e) => {
                     println!("{:?}", e);
                     continue;
