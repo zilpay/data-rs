@@ -22,6 +22,20 @@ pub fn polymod(values: &[u8]) -> u32 {
     chk
 }
 
+pub fn gen_limited_vec(start: u64, end: u64, limit: usize) -> Vec<u64> {
+    let mut list = Vec::with_capacity(limit);
+
+    for i in start..end {
+        if list.len() >= limit {
+            break;
+        }
+
+        list.push(i);
+    }
+
+    list
+}
+
 pub fn hrp_expand(hrp: &str) -> Vec<u8> {
     let mut ret = Vec::new();
 
@@ -239,6 +253,20 @@ fn test_encode() {
     let should = "test1qep0uve";
 
     assert_eq!(should, res);
+}
+
+#[test]
+fn test_gen_limited_vec() {
+    let start = 200;
+    let end = 500;
+    let limit = 20;
+    let result = gen_limited_vec(start, end, limit);
+    let should_be = vec![
+        200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217,
+        218, 219,
+    ];
+
+    assert_eq!(result, should_be);
 }
 
 #[test]

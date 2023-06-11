@@ -1,7 +1,8 @@
 use data_rs::{
+    config::blockchain::BLOCK_LIMIT,
     models::{currencies::Currencies, dex::Dex, meta::Meta, shit_wallet::ShitWallet},
     server::run_server,
-    utils::zilliqa::Zilliqa,
+    utils::{crypto::gen_limited_vec, zilliqa::Zilliqa},
 };
 use log::{error, info, LevelFilter};
 use simple_logger::SimpleLogger;
@@ -52,32 +53,49 @@ async fn main() {
                     continue;
                 }
             };
+            let blocks = gen_limited_vec(current_block, last_block, BLOCK_LIMIT);
+            let end_block = blocks.last().unwrap();
 
-            for index in current_block..last_block {
-                let hash_addr_list = match ShitWallet::get_block_body(&zil, index).await {
-                    Ok(value) => value,
-                    Err(e) => {
-                        error!("try get body from block: {:?}, error: {:?}", index, e);
+            if blocks.len() == 0 || last_block == *end_block {
+                continue;
+            }
 
-                        shit_wallet_ref.write().await.update_block(index).unwrap();
+            let hash_addr_list = match ShitWallet::get_block_body(&zil, &blocks).await {
+                Ok(value) => value,
+                Err(e) => {
+                    error!("try get body from blocks: {:?}, error: {:?}", &blocks, e);
 
-                        break;
-                    }
-                };
-                let number_of_shits = hash_addr_list.len();
-
-                if number_of_shits == 0 {
-                    shit_wallet_ref.write().await.update_block(index).unwrap();
                     continue;
                 }
+            };
 
-                let mut instance = shit_wallet_ref.write().await;
+            let number_of_shits = hash_addr_list.len();
 
-                instance.update_wallets(hash_addr_list).unwrap();
-                instance.update_block(index).unwrap();
+            if number_of_shits == 0 {
+                shit_wallet_ref
+                    .write()
+                    .await
+                    .update_block(*end_block)
+                    .unwrap();
 
-                info!("added and update shit-wallets: {:?}", number_of_shits);
+                continue;
             }
+
+            let wallets = match ShitWallet::fetch_wallets(&zil, hash_addr_list).await {
+                Ok(w) => w,
+                Err(e) => {
+                    error!("try fetch contract addresses by hashs error: {:?}", e);
+
+                    continue;
+                }
+            };
+
+            let mut instance = shit_wallet_ref.write().await;
+
+            instance.update_wallets(wallets).unwrap();
+            instance.update_block(*end_block).unwrap();
+
+            info!("added and update shit-wallets: {:?}", number_of_shits);
         }
     });
 

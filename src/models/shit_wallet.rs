@@ -94,102 +94,77 @@ impl ShitWallet {
 
     pub async fn get_block_body(
         zilliqa: &Zilliqa,
-        block_number: u64,
+        block_numbers: &Vec<u64>,
     ) -> Result<Vec<(String, String)>, Error> {
         let mut mb_wallets: Vec<(String, String)> = Vec::new();
-        let params = json!([block_number.to_string()]);
-        let bodies: Vec<JsonBodyReq> =
-            vec![zilliqa.build_body(RPC_METHODS.get_txn_bodies_for_tx_block, params)];
+        let bodies: Vec<JsonBodyReq> = block_numbers
+            .iter()
+            .map(|block_number| {
+                let params = json!([block_number.to_string()]);
+                zilliqa.build_body(RPC_METHODS.get_txn_bodies_for_tx_block, params)
+            })
+            .collect();
         let res: Vec<JsonBodyRes<Vec<Map<String, Value>>>> = zilliqa.fetch(bodies).await.unwrap();
-        let body = match res.first() {
-            Some(b) => b,
-            None => {
-                let no_txns = Error::new(ErrorKind::Other, "no txns in the block");
+        let bodies: Vec<Vec<Map<String, Value>>> =
+            res.into_iter().filter_map(|b| b.result).collect();
 
-                return Err(no_txns);
-            }
-        };
-        let txns = match body.result.clone() {
-            Some(r) => r,
-            None => {
-                if let Some(err) = &body.error {
-                    let error_code = err
-                        .get("code")
-                        .unwrap_or(&json!("0"))
+        for txns in bodies {
+            for tx in txns {
+                if let Value::String(to_addr) = tx.get("toAddr").unwrap_or(&json!("")) {
+                    if to_addr != ZERO_ADDR {
+                        // Only deploy contract txns.
+                        continue;
+                    }
+
+                    let receipt = tx.get("receipt").unwrap_or(&json!("")).clone();
+                    let success = receipt
+                        .get("success")
                         .clone()
-                        .as_i64()
-                        .unwrap_or(0);
+                        .unwrap_or(&json!(false))
+                        .as_bool()
+                        .unwrap_or(false);
 
-                    if error_code == -1 {
-                        // SKIP if block doesn't have any txns...
-                        return Ok(mb_wallets);
+                    if !success {
+                        continue;
                     }
-                }
 
-                let message = format!("fail to get result: {:?}", &body);
-                let no_result = Error::new(ErrorKind::Other, message);
-
-                return Err(no_result);
-            }
-        };
-
-        for tx in txns {
-            if let Value::String(to_addr) = tx.get("toAddr").unwrap_or(&json!("")) {
-                if to_addr != ZERO_ADDR {
-                    // Only deploy contract txns.
-                    continue;
-                }
-
-                let receipt = tx.get("receipt").unwrap_or(&json!("")).clone();
-                let success = receipt
-                    .get("success")
-                    .clone()
-                    .unwrap_or(&json!(false))
-                    .as_bool()
-                    .unwrap_or(false);
-
-                if !success {
-                    continue;
-                }
-
-                let init = match tx.get("data") {
-                    Some(d) => d,
-                    None => continue,
-                };
-                let init_admin_pubkey = match ShitWallet::get_pub_from_init(init) {
-                    Ok(key) => key,
-                    Err(_) => continue,
-                };
-                let addr = match get_address_from_public_key(&init_admin_pubkey) {
-                    Ok(a) => a,
-                    Err(_) => continue,
-                };
-                let hash = match tx.get("ID") {
-                    Some(h) => {
-                        if let Value::String(str) = h {
-                            str
-                        } else {
-                            continue;
+                    let init = match tx.get("data") {
+                        Some(d) => d,
+                        None => continue,
+                    };
+                    let init_admin_pubkey = match ShitWallet::get_pub_from_init(init) {
+                        Ok(key) => key,
+                        Err(_) => continue,
+                    };
+                    let addr = match get_address_from_public_key(&init_admin_pubkey) {
+                        Ok(a) => a,
+                        Err(_) => continue,
+                    };
+                    let hash = match tx.get("ID") {
+                        Some(h) => {
+                            if let Value::String(str) = h {
+                                str
+                            } else {
+                                continue;
+                            }
                         }
-                    }
-                    None => continue,
-                };
+                        None => continue,
+                    };
 
-                mb_wallets.push((hash.to_owned(), addr.to_owned()));
-            } else {
-                continue;
-            };
+                    mb_wallets.push((hash.to_owned(), addr.to_owned()));
+                } else {
+                    continue;
+                };
+            }
         }
 
         Ok(mb_wallets)
     }
 
     pub async fn fetch_wallets(
-        &self,
         zil: &Zilliqa,
-        block_number: u64,
+        wallets: Vec<(String, String)>,
     ) -> Result<Vec<(String, String)>, Error> {
-        let wallets = ShitWallet::get_block_body(&zil, block_number).await?;
         let req_bodies: Vec<JsonBodyReq> = wallets
             .iter()
             .map(|(hash, _)| {
