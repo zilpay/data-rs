@@ -6,7 +6,7 @@ use hyper::{
     Request, Response, StatusCode,
 };
 use serde_json::json;
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 use tokio::sync::RwLock;
 
 use crate::models::shit_wallet::ShitWallet;
