@@ -36,12 +36,12 @@ async fn main() {
         let zil = Zilliqa::new();
         let mut shit_wallet = ShitWallet::new(&db_path);
         // let n = shit_wallet.later_block(&zil).await.unwrap();
+        //
+        // let wallets = shit_wallet.fetch_wallets(&zil, 2931306).await.unwrap();
 
-        shit_wallet.get_block_body(&zil, 2931306).await;
+        // shit_wallet.update_wallets(wallets).unwrap();
 
-        // shit_wallet.update_block(n).unwrap();
-
-        // dbg!(n);
+        dbg!(&shit_wallet.wallets);
     }
 
     tokio::task::spawn(async move {

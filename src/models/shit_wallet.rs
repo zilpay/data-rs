@@ -1,8 +1,10 @@
+use std::collections::HashMap;
 use std::io::{Error, ErrorKind};
 
 use crate::config::blockchain::{BLOCKCHAIN_KEY, BLOCK_NUMBER_KEY, START_INDEX_BLOCK};
 use crate::config::zilliqa::RPC_METHODS;
 use crate::config::zilliqa::ZERO_ADDR;
+use crate::utils::crypto::get_address_from_public_key;
 use crate::utils::zilliqa::{JsonBodyReq, JsonBodyRes, Zilliqa};
 use log::info;
 use serde_json::{json, Map, Value};
@@ -10,7 +12,7 @@ use sled::{Db, IVec};
 
 #[derive(Debug)]
 pub struct ShitWallet {
-    pub wallets: Map<String, Value>,
+    pub wallets: HashMap<String, Vec<String>>,
     pub current_block: u64,
     pub db: Db,
     app_name: &'static str,
@@ -21,14 +23,14 @@ impl ShitWallet {
         let app_name = "BLOCKCHAIN";
         let db = sled::open(format!("{}/{}", db_path, BLOCKCHAIN_KEY))
             .expect("Cannot open currencies database.");
-        let wallets = match db.get(BLOCKCHAIN_KEY) {
+        let wallets: HashMap<String, Vec<String>> = match db.get(BLOCKCHAIN_KEY) {
             Ok(mb_cache) => {
                 let cache = mb_cache.unwrap_or(IVec::default());
                 let mb_json = std::str::from_utf8(&cache).unwrap_or("{}");
 
-                serde_json::from_str(mb_json).unwrap_or(Map::new())
+                serde_json::from_str(mb_json).unwrap_or(HashMap::new())
             }
-            Err(_) => Map::new(),
+            Err(_) => HashMap::new(),
         };
         let current_block = match db.get(BLOCK_NUMBER_KEY) {
             Ok(mb_block) => {
@@ -70,8 +72,18 @@ impl ShitWallet {
         Ok(())
     }
 
-    pub fn update_wallets(&mut self, wallets: Map<String, Value>) -> Result<(), Error> {
-        self.wallets = wallets;
+    pub fn update_wallets(&mut self, wallets: Vec<(String, String)>) -> Result<(), Error> {
+        for w in wallets {
+            match self.wallets.get_mut(&w.1) {
+                Some(value) => {
+                    value.push(w.0);
+                }
+                None => {
+                    self.wallets.insert(w.1, vec![w.0]);
+                }
+            };
+        }
+
         self.db
             .insert(BLOCKCHAIN_KEY, self.serializatio().as_bytes())?;
 
@@ -80,7 +92,11 @@ impl ShitWallet {
         Ok(())
     }
 
-    pub async fn get_block_body(&self, zilliqa: &Zilliqa, block_number: u64) -> Result<(), Error> {
+    pub async fn get_block_body(
+        &self,
+        zilliqa: &Zilliqa,
+        block_number: u64,
+    ) -> Result<Vec<(String, String)>, Error> {
         let params = json!([block_number.to_string()]);
         let bodies: Vec<JsonBodyReq> =
             vec![zilliqa.build_body(RPC_METHODS.get_txn_bodies_for_tx_block, params)];
@@ -101,6 +117,8 @@ impl ShitWallet {
                 return Err(no_result);
             }
         };
+
+        let mut mb_wallets: Vec<(String, String)> = Vec::new();
 
         for tx in txns {
             if let Value::String(to_addr) = tx.get("toAddr").unwrap_or(&json!("")) {
@@ -129,14 +147,58 @@ impl ShitWallet {
                     Ok(key) => key,
                     Err(_) => continue,
                 };
+                let addr = match get_address_from_public_key(&init_admin_pubkey) {
+                    Ok(a) => a,
+                    Err(_) => continue,
+                };
+                let hash = match tx.get("ID") {
+                    Some(h) => {
+                        if let Value::String(str) = h {
+                            str
+                        } else {
+                            continue;
+                        }
+                    }
+                    None => continue,
+                };
 
-                dbg!(init_admin_pubkey);
+                mb_wallets.push((hash.to_owned(), addr.to_owned()));
             } else {
                 continue;
             };
         }
 
-        Ok(())
+        Ok(mb_wallets)
+    }
+
+    pub async fn fetch_wallets(
+        &self,
+        zil: &Zilliqa,
+        block_number: u64,
+    ) -> Result<Vec<(String, String)>, Error> {
+        let wallets = self.get_block_body(&zil, block_number).await?;
+        let req_bodies: Vec<JsonBodyReq> = wallets
+            .iter()
+            .map(|(hash, _)| {
+                let params = json!([hash]);
+
+                zil.build_body(RPC_METHODS.get_contract_address_from_transaction_id, params)
+            })
+            .collect();
+        let res: Vec<JsonBodyRes<String>> = zil.fetch(req_bodies).await?;
+        let contracts: Vec<String> = res.iter().filter_map(|r| r.result.clone()).collect();
+        let mut shit_wallets: Vec<(String, String)> = Vec::new();
+
+        for (index, wallet) in wallets.iter().enumerate() {
+            let contract = match contracts.get(index) {
+                Some(c) => c,
+                None => continue,
+            };
+
+            shit_wallets.push((contract.to_owned(), wallet.1.to_owned()));
+        }
+
+        Ok(shit_wallets)
     }
 
     pub async fn later_block(&self, zilliqa: &Zilliqa) -> Result<u64, Error> {
