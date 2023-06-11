@@ -173,8 +173,9 @@ async fn main() {
     let meta_ref0 = Arc::clone(&meta);
     let dex_ref0 = Arc::clone(&dex);
     let rates_ref0 = Arc::clone(&rates);
+    let shit_wallet_ref0 = Arc::clone(&shit_wallet);
 
-    run_server(&meta_ref0, &dex_ref0, &rates_ref0, port)
+    run_server(&meta_ref0, &dex_ref0, &rates_ref0, &shit_wallet_ref0, port)
         .await
         .unwrap();
 }

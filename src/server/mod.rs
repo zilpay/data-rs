@@ -7,7 +7,7 @@ use tokio::sync::RwLock;
 
 use routers::route;
 
-use crate::models::{currencies::Currencies, dex::Dex, meta::Meta};
+use crate::models::{currencies::Currencies, dex::Dex, meta::Meta, shit_wallet::ShitWallet};
 
 mod routers;
 
@@ -15,6 +15,7 @@ pub async fn run_server(
     meta: &Arc<RwLock<Meta>>,
     dex: &Arc<RwLock<Dex>>,
     rates: &Arc<RwLock<Currencies>>,
+    shit_wallet: &Arc<RwLock<ShitWallet>>,
     port: u16,
 ) -> Result<(), io::Error> {
     let addr = SocketAddr::from(([127, 0, 0, 1], port));
@@ -27,10 +28,17 @@ pub async fn run_server(
         let meta_ref = Arc::clone(&meta);
         let dex_ref = Arc::clone(&dex);
         let rates_ref = Arc::clone(&rates);
+        let shit_wallet_ref = Arc::clone(&shit_wallet);
 
         tokio::task::spawn(async move {
             let service = service_fn(move |req| {
-                route(req, meta_ref.clone(), dex_ref.clone(), rates_ref.clone())
+                route(
+                    req,
+                    meta_ref.clone(),
+                    dex_ref.clone(),
+                    rates_ref.clone(),
+                    shit_wallet_ref.clone(),
+                )
             });
 
             if let Err(err) = http1::Builder::new()

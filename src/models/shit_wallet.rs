@@ -55,7 +55,7 @@ impl ShitWallet {
         }
     }
 
-    pub fn serializatio(&self) -> String {
+    pub fn wallet_serializatio(&self) -> String {
         serde_json::to_string(&self.wallets).unwrap()
     }
 
@@ -85,7 +85,7 @@ impl ShitWallet {
         }
 
         self.db
-            .insert(BLOCKCHAIN_KEY, self.serializatio().as_bytes())?;
+            .insert(BLOCKCHAIN_KEY, self.wallet_serializatio().as_bytes())?;
 
         info!("{:?}: rates updated!", self.app_name);
 
