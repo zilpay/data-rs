@@ -1,9 +1,10 @@
 use hyper::server::conn::http1;
 use hyper::service::service_fn;
+use hyper_util::rt::TokioIo;
 use log::{error, info};
 use std::{io, net::SocketAddr, sync::Arc};
 use tokio::net::TcpListener;
-use tokio::sync::RwLock;
+use tokio::sync::RwLock; // Добавьте этот импорт
 
 use routers::route;
 
@@ -41,10 +42,9 @@ pub async fn run_server(
                 )
             });
 
-            if let Err(err) = http1::Builder::new()
-                .serve_connection(stream, service)
-                .await
-            {
+            let io = TokioIo::new(stream);
+
+            if let Err(err) = http1::Builder::new().serve_connection(io, service).await {
                 error!("Failed to serve connection: {:?}", err);
             }
         });
