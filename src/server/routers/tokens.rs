@@ -82,7 +82,7 @@ pub async fn handle_get_token(
     meta: Arc<RwLock<Meta>>,
 ) -> Result<Response<Full<Bytes>>, hyper::Error> {
     let params = req.uri().path().split("/").collect::<Vec<&str>>();
-    let symbol = params.last().unwrap_or(&"").clone().to_lowercase();
+    let symbol = params.last().unwrap_or(&"").to_lowercase();
 
     if let Some(token) = meta
         .read()
@@ -140,7 +140,7 @@ pub async fn handle_update_token(
     }
 
     let params = req.uri().path().split("/").collect::<Vec<&str>>();
-    let base16 = params.last().unwrap_or(&"").clone().to_lowercase();
+    let base16 = params.last().unwrap_or(&"").to_lowercase();
     let body_bytes = req.collect().await?.to_bytes();
     let value: Value = match serde_json::from_slice(&body_bytes) {
         Ok(v) => v,

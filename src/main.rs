@@ -1,10 +1,9 @@
 use data_rs::{
-    config::blockchain::BLOCK_LIMIT,
-    models::{currencies::Currencies, dex::Dex, meta::Meta, shit_wallet::ShitWallet},
+    models::{currencies::Currencies, dex::Dex, meta::Meta},
     server::run_server,
-    utils::{crypto::gen_limited_vec, zilliqa::Zilliqa},
+    utils::zilliqa::Zilliqa,
 };
-use log::{error, info, LevelFilter};
+use log::{error, LevelFilter};
 use simple_logger::SimpleLogger;
 use std::{sync::Arc, time::Duration};
 use tokio;
@@ -27,77 +26,11 @@ async fn main() {
     let meta = Arc::new(RwLock::new(Meta::new(&db_path)));
     let rates = Arc::new(RwLock::new(Currencies::new(&db_path)));
     let dex = Arc::new(RwLock::new(Dex::new(&db_path)));
-    let shit_wallet = Arc::new(RwLock::new(ShitWallet::new(&db_path)));
 
     let meta_ref = Arc::clone(&meta);
     let dex_ref = Arc::clone(&dex);
     let meta_dex_ref = Arc::clone(&dex);
     let rates_ref = Arc::clone(&rates);
-    let shit_wallet_ref = Arc::clone(&shit_wallet);
-
-    tokio::task::spawn(async move {
-        loop {
-            tokio::time::sleep(Duration::from_secs(5)).await;
-
-            let zil = Zilliqa::new();
-            let instance = shit_wallet_ref.read().await;
-            let current_block = instance.current_block.clone();
-
-            drop(instance);
-
-            let last_block = match ShitWallet::get_later_block(&zil).await {
-                Ok(n) => n,
-                Err(err) => {
-                    error!("try get last block error: {:?}", err);
-
-                    continue;
-                }
-            };
-            let blocks = gen_limited_vec(current_block, last_block, BLOCK_LIMIT);
-            let end_block = blocks.last().unwrap();
-
-            if blocks.len() == 0 || last_block == *end_block {
-                continue;
-            }
-
-            let hash_addr_list = match ShitWallet::get_block_body(&zil, &blocks).await {
-                Ok(value) => value,
-                Err(e) => {
-                    error!("try get body from blocks: {:?}, error: {:?}", &blocks, e);
-
-                    continue;
-                }
-            };
-
-            let number_of_shits = hash_addr_list.len();
-
-            if number_of_shits == 0 {
-                shit_wallet_ref
-                    .write()
-                    .await
-                    .update_block(*end_block)
-                    .unwrap();
-
-                continue;
-            }
-
-            let wallets = match ShitWallet::fetch_wallets(&zil, hash_addr_list).await {
-                Ok(w) => w,
-                Err(e) => {
-                    error!("try fetch contract addresses by hashs error: {:?}", e);
-
-                    continue;
-                }
-            };
-
-            let mut instance = shit_wallet_ref.write().await;
-
-            instance.update_wallets(wallets).unwrap();
-            instance.update_block(*end_block).unwrap();
-
-            info!("added and update shit-wallets: {:?}", number_of_shits);
-        }
-    });
 
     tokio::task::spawn(async move {
         loop {
@@ -112,6 +45,7 @@ async fn main() {
                     continue;
                 }
             };
+
             let sorted = match Meta::sort_zilliqa_tokens(&tokens, &zil).await {
                 Ok(sorted) => sorted,
                 Err(e) => {
@@ -173,9 +107,8 @@ async fn main() {
     let meta_ref0 = Arc::clone(&meta);
     let dex_ref0 = Arc::clone(&dex);
     let rates_ref0 = Arc::clone(&rates);
-    let shit_wallet_ref0 = Arc::clone(&shit_wallet);
 
-    run_server(&meta_ref0, &dex_ref0, &rates_ref0, &shit_wallet_ref0, port)
+    run_server(&meta_ref0, &dex_ref0, &rates_ref0, port)
         .await
         .unwrap();
 }

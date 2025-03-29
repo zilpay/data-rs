@@ -14,8 +14,11 @@ use log::{error, info};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
-use sled::{Db, IVec};
-use std::io::{Error, ErrorKind};
+use sled::Db;
+use std::{
+    collections::HashSet,
+    io::{Error, ErrorKind},
+};
 
 use super::dex::Dex;
 
@@ -26,10 +29,10 @@ pub struct Token {
     pub scope: u8,
     pub name: String,
     pub symbol: String,
-    pub token_type: u8, // 1 = ZRC1, 2 = ZRC2
+    pub token_type: u8,
     pub decimals: u8,
     pub listed: bool,
-    pub status: u8, // 0 - blocked, 1 - enabled
+    pub status: u8,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -54,23 +57,21 @@ impl Meta {
         let app_name = "META";
         let db =
             sled::open(format!("{}/{}", db_path, META_KEY)).expect("Cannot meta open database.");
-        let list = match db.get(META_KEY) {
-            Ok(mb_cache) => {
-                let cache = mb_cache.unwrap_or(IVec::default());
-                let mb_json = std::str::from_utf8(&cache).unwrap();
-                let list = serde_json::from_str(mb_json).unwrap_or(Vec::new());
 
-                info!("{app_name}: loaded from cache {}", list.len());
-
-                list
-            }
-            Err(_) => {
+        let list = db
+            .get(META_KEY)
+            .map(|mb_cache| {
+                let cache = mb_cache.unwrap_or_default();
+                std::str::from_utf8(&cache)
+                    .map(|mb_json| serde_json::from_str(mb_json).unwrap_or_default())
+                    .unwrap_or_default()
+            })
+            .unwrap_or_else(|_| {
                 error!("{app_name}: fail to load cache!");
-
                 Vec::new()
-            }
-        };
+            });
 
+        info!("{app_name}: loaded from cache {}", list.len());
         Meta { list, db, app_name }
     }
 
@@ -79,57 +80,42 @@ impl Meta {
         tokens: Vec<(String, u8, String)>,
         res: Vec<JsonBodyRes<Vec<ContractInit>>>,
     ) -> Result<(), std::io::Error> {
+        let existing_base16s: HashSet<String> =
+            self.list.iter().map(|t| t.base16.to_lowercase()).collect();
+
         let new_tokens: Vec<Token> = res
             .iter()
             .filter_map(|r| {
-                let listed = false;
-                let token_type = 1; // TODO: track only ZRC2 tokens.
-                let status = 1;
-                let params = match &r.result {
-                    Some(result) => result,
-                    None => return None,
-                };
-                let (name, symbol, base16, decimals) = match Meta::parse_init(params) {
-                    Ok(tuple) => tuple,
-                    Err(_) => return None,
-                };
+                let params = r.result.as_ref()?;
+                let (name, symbol, base16, decimals) = Meta::parse_init(params).ok()?;
 
-                // Skip Already has tokens
-                match self
-                    .list
-                    .iter()
-                    .find(|t| t.base16.to_lowercase() == base16.to_lowercase())
-                {
-                    Some(_) => return None,
-                    None => (),
+                if existing_base16s.contains(&base16.to_lowercase()) {
+                    return None;
                 }
 
-                let (bech32, scope, _) = match tokens.iter().find(|(_, _, b16)| {
-                    *b16.to_lowercase() == *base16.replace("0x", "").to_lowercase()
-                }) {
-                    Some(f) => f.clone(),
-                    None => return None,
-                };
+                let (bech32, scope, _) = tokens
+                    .iter()
+                    .find(|(_, _, b16)| {
+                        b16.to_lowercase().replace("0x", "")
+                            == base16.replace("0x", "").to_lowercase()
+                    })?
+                    .clone();
 
                 Some(Token {
                     bech32,
-                    status,
+                    status: 1,
                     base16,
                     decimals,
                     name,
                     symbol,
-                    token_type,
+                    token_type: 1,
                     scope,
-                    listed,
+                    listed: false,
                 })
             })
             .collect();
 
-        info!(
-            "{:?}: added new tokens {:?}",
-            self.app_name,
-            new_tokens.len()
-        );
+        info!("{}: added new tokens {}", self.app_name, new_tokens.len());
 
         self.list.extend(new_tokens);
         self.write_db()?;
@@ -139,8 +125,7 @@ impl Meta {
 
     pub fn write_db(&mut self) -> Result<(), Error> {
         self.list.sort_by(|a, b| b.scope.cmp(&a.scope));
-        self.db.insert(META_KEY, self.serializatio().as_bytes())?;
-
+        self.db.insert(META_KEY, self.serialization().as_bytes())?;
         Ok(())
     }
 
@@ -151,37 +136,29 @@ impl Meta {
         let bodies: Vec<JsonBodyReq> = tokens
             .iter()
             .map(|(_, _, base16)| {
-                let params = json!([base16]);
-
-                zilliqa.build_body(RPC_METHODS.get_smart_contract_init, params)
+                zilliqa.build_body(RPC_METHODS.get_smart_contract_init, json!([base16]))
             })
             .collect();
-        let res: Vec<JsonBodyRes<Vec<ContractInit>>> = zilliqa.fetch(bodies).await?;
 
-        Ok(res)
+        let results = zilliqa.fetch::<Vec<ContractInit>>(bodies).await?;
+        Ok(results)
     }
 
     pub async fn get_meta_tokens() -> Result<Vec<(String, u8, String)>, Error> {
-        match Meta::fetch().await {
-            Ok(tokens) => return Ok(tokens),
-            Err(e) => {
-                let custom_error = Error::new(ErrorKind::Other, "Github is down");
-
-                error!("Github is down!, error: {:?}", e);
-
-                return Err(custom_error);
-            }
-        };
+        Meta::fetch().await.map_err(|e| {
+            error!("Github is down!, error: {:?}", e);
+            Error::new(ErrorKind::Other, "Github is down")
+        })
     }
 
     pub fn listed_tokens_update(&mut self, dex: &Dex) {
-        for token in self.list.iter_mut() {
+        for token in &mut self.list {
             token.listed = dex.pools.contains_key(&token.base16);
         }
     }
 
-    pub fn serializatio(&self) -> String {
-        serde_json::to_string(&self.list).unwrap()
+    pub fn serialization(&self) -> String {
+        serde_json::to_string(&self.list).unwrap_or_default()
     }
 
     async fn fetch() -> Result<Vec<(String, u8, String)>, reqwest::Error> {
@@ -189,6 +166,7 @@ impl Meta {
         let response = client.get(CRYPTO_META_URL).send().await?;
         let chain = "zilliqa.";
         let body: Map<String, Value> = response.json().await?;
+
         let body: Vec<(String, u8, String)> = body
             .into_iter()
             .filter_map(|(key, value)| {
@@ -197,32 +175,23 @@ impl Meta {
                 }
 
                 let bech32 = key.replace(chain, "");
-                let base16 = match from_bech32_address(&bech32) {
-                    Some(addr) => hex::encode(addr),
-                    None => return None,
-                };
+                let base16 = from_bech32_address(&bech32).map(hex::encode)?;
 
                 let found_exceptions = TOKENS_EXCEPTIONS.iter().find(|&addr| addr[0] == bech32);
-                let score: u8 = match value.get("gen") {
-                    Some(gen) => {
-                        let score = gen.get("score").unwrap_or(&json!(0)).as_u64().unwrap_or(0);
-                        let score: u8 = score.try_into().unwrap_or(0);
-
-                        score
-                    }
-                    None => 0,
-                };
+                let score: u8 = value
+                    .get("gen")
+                    .and_then(|gen| gen.get("score"))
+                    .and_then(|s| s.as_u64())
+                    .map(|s| s as u8)
+                    .unwrap_or(0);
 
                 if score < MIN_SCORE {
                     return None;
                 }
 
                 match found_exceptions {
-                    Some(found) => Some((
-                        String::from(found[1]),
-                        score,
-                        hex::encode(from_bech32_address(&found[1]).unwrap()),
-                    )),
+                    Some(found) => from_bech32_address(&found[1])
+                        .map(|addr| (String::from(found[1]), score, hex::encode(addr))),
                     None => Some((bech32, score, base16)),
                 }
             })
@@ -232,63 +201,29 @@ impl Meta {
     }
 
     fn parse_init(params: &Vec<ContractInit>) -> Result<(String, String, String, u8), Error> {
-        let key = "value";
-        let name = match params.iter().find(|item| item.vname == "name") {
-            Some(n) => n
-                .value
-                .get(key)
-                .unwrap_or(&json!(""))
-                .as_str()
-                .unwrap_or("")
-                .to_string(),
-            None => {
-                return Err(Error::new(ErrorKind::Other, "vname (name) is required"));
-            }
+        let get_string_value = |vname: &str| -> Result<String, Error> {
+            params
+                .iter()
+                .find(|item| item.vname == vname)
+                .and_then(|n| n.value.get("value"))
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string())
+                .ok_or_else(|| {
+                    Error::new(ErrorKind::Other, format!("vname ({}) is required", vname))
+                })
         };
-        let symbol = match params.iter().find(|item| item.vname == "symbol") {
-            Some(n) => n
-                .value
-                .get(key)
-                .unwrap_or(&json!(""))
-                .as_str()
-                .unwrap_or("")
-                .to_string(),
-            None => {
-                return Err(Error::new(ErrorKind::Other, "vname (symbol) is required"));
-            }
-        };
-        let base16 = match params.iter().find(|item| item.vname == "_this_address") {
-            Some(n) => n
-                .value
-                .get(key)
-                .unwrap_or(&json!(""))
-                .as_str()
-                .unwrap_or("")
-                .to_lowercase(),
-            None => {
-                return Err(Error::new(
-                    ErrorKind::Other,
-                    "vname (_this_address) is required",
-                ));
-            }
-        };
-        let decimals = match params.iter().find(|item| item.vname == "decimals") {
-            Some(n) => {
-                let str_value = n
-                    .value
-                    .get(key)
-                    .unwrap_or(&json!("0"))
-                    .as_str()
-                    .unwrap_or("0")
-                    .to_string();
-                let decimals: u8 = str_value.parse().unwrap_or(0);
 
-                decimals
-            }
-            None => {
-                return Err(Error::new(ErrorKind::Other, "vname (decimals) is required"));
-            }
-        };
+        let name = get_string_value("name")?;
+        let symbol = get_string_value("symbol")?;
+        let base16 = get_string_value("_this_address")?.to_lowercase();
+
+        let decimals = params
+            .iter()
+            .find(|item| item.vname == "decimals")
+            .and_then(|n| n.value.get("value"))
+            .and_then(|v| v.as_str())
+            .map(|s| s.parse::<u8>().unwrap_or(0))
+            .ok_or_else(|| Error::new(ErrorKind::Other, "vname (decimals) is required"))?;
 
         Ok((name, symbol, base16, decimals))
     }
