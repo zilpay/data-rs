@@ -32,46 +32,46 @@ async fn main() {
     let meta_dex_ref = Arc::clone(&dex);
     let rates_ref = Arc::clone(&rates);
 
-    tokio::task::spawn(async move {
-        loop {
-            tokio::time::sleep(Duration::from_secs(50)).await;
+    // tokio::task::spawn(async move {
+    //     loop {
+    //         tokio::time::sleep(Duration::from_secs(50)).await;
 
-            let zil = Zilliqa::new();
-            let tokens = match Meta::get_meta_tokens().await {
-                Ok(tokens) => tokens,
-                Err(e) => {
-                    error!("github:meta: {:?}", e);
+    //         let zil = Zilliqa::new();
+    //         let tokens = match Meta::get_meta_tokens().await {
+    //             Ok(tokens) => tokens,
+    //             Err(e) => {
+    //                 error!("github:meta: {:?}", e);
 
-                    continue;
-                }
-            };
+    //                 continue;
+    //             }
+    //         };
 
-            let sorted = match Meta::sort_zilliqa_tokens(&tokens, &zil).await {
-                Ok(sorted) => sorted,
-                Err(e) => {
-                    error!("zilliqa node: {:?}", e);
+    //         let sorted = match Meta::sort_zilliqa_tokens(&tokens, &zil).await {
+    //             Ok(sorted) => sorted,
+    //             Err(e) => {
+    //                 error!("zilliqa node: {:?}", e);
 
-                    continue;
-                }
-            };
+    //                 continue;
+    //             }
+    //         };
 
-            let mut unwarp_meta = meta_ref.write().await;
+    //         let mut unwarp_meta = meta_ref.write().await;
 
-            match unwarp_meta.update(tokens, sorted) {
-                Ok(_) => {
-                    let dex = meta_dex_ref.read().await;
+    //         match unwarp_meta.update(tokens, sorted) {
+    //             Ok(_) => {
+    //                 let dex = meta_dex_ref.read().await;
 
-                    unwarp_meta.listed_tokens_update(&dex);
-                    unwarp_meta.write_db().unwrap(); // TODO: make Error hanlder.
-                }
-                Err(e) => {
-                    error!("tokens update: {:?}", e);
+    //                 unwarp_meta.listed_tokens_update(&dex);
+    //                 unwarp_meta.write_db().unwrap(); // TODO: make Error hanlder.
+    //             }
+    //             Err(e) => {
+    //                 error!("tokens update: {:?}", e);
 
-                    continue;
-                }
-            };
-        }
-    });
+    //                 continue;
+    //             }
+    //         };
+    //     }
+    // });
 
     tokio::task::spawn(async move {
         loop {
