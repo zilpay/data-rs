@@ -1,10 +1,10 @@
-use hyper::server::conn::http1;
 use hyper::service::service_fn;
 use hyper_util::rt::TokioIo;
+use hyper_util::server::conn::auto;
 use log::{error, info};
 use std::{io, net::SocketAddr, sync::Arc};
 use tokio::net::TcpListener;
-use tokio::sync::RwLock; // Добавьте этот импорт
+use tokio::sync::RwLock;
 
 use routers::route;
 
@@ -19,7 +19,7 @@ pub async fn run_server(
     port: u16,
 ) -> Result<(), io::Error> {
     let addr = SocketAddr::from(([127, 0, 0, 1], port));
-    let listener = TcpListener::bind(&addr).await.unwrap();
+    let listener = TcpListener::bind(&addr).await?;
 
     info!("Listening on http://{}", addr);
 
@@ -36,7 +36,10 @@ pub async fn run_server(
 
             let io = TokioIo::new(stream);
 
-            if let Err(err) = http1::Builder::new().serve_connection(io, service).await {
+            if let Err(err) = auto::Builder::new(hyper_util::rt::TokioExecutor::new())
+                .serve_connection(io, service)
+                .await
+            {
                 error!("Failed to serve connection: {:?}", err);
             }
         });
