@@ -34,6 +34,7 @@ pub struct Token {
     pub decimals: u8,
     pub listed: bool,
     pub status: TokenStatus,
+    pub chain_id: u64,
     pub rate: f64,
     pub price_changed: i64,
 }
@@ -70,6 +71,7 @@ pub async fn pancakeswap_get_tokens() -> Result<Vec<Token>> {
         .enumerate()
         .map(|(index, token)| Token {
             scope: total_length - index as u64,
+            chain_id: token["chainId"].as_u64().unwrap_or_default(),
             name: token["name"].as_str().unwrap_or_default().to_string(),
             symbol: token["symbol"].as_str().unwrap_or_default().to_string(),
             decimals: token["decimals"].as_u64().unwrap_or(0) as u8,
@@ -115,6 +117,7 @@ pub async fn coingecko_get_tokens(chain_name: &str) -> Result<Vec<Token>> {
         .enumerate()
         .map(|(index, token)| Token {
             scope: total_length - index as u64,
+            chain_id: token["chainId"].as_u64().unwrap_or_default(),
             name: token["name"].as_str().unwrap_or_default().to_string(),
             symbol: token["symbol"].as_str().unwrap_or_default().to_string(),
             decimals: token["decimals"].as_u64().unwrap_or(0) as u8,
@@ -132,11 +135,17 @@ pub async fn coingecko_get_tokens(chain_name: &str) -> Result<Vec<Token>> {
 
 #[cfg(test)]
 mod pancakeswap_get_tokens_tests {
+    use std::collections::HashMap;
+
+    use crate::{
+        components::rates::get_cryptocompare_prices, config::rates::CRYPTOCOMPARE_TOKENS_LIMIT,
+    };
+
     use super::*;
     use tokio;
 
     #[tokio::test]
-    async fn test_get_tokens_basic() {
+    async fn test_get_tokens_bsc() {
         let tokens = pancakeswap_get_tokens().await.unwrap();
         assert!(!tokens.is_empty());
         let token = &tokens[0];
@@ -181,5 +190,30 @@ mod pancakeswap_get_tokens_tests {
         assert!(token.decimals > 0);
         assert_eq!(token.scope, tokens.len() as u64);
         assert_eq!(tokens.last().unwrap().scope, 1);
+    }
+
+    #[tokio::test]
+    async fn test_update_rates() {
+        let tokens = pancakeswap_get_tokens().await.unwrap();
+        let symbols: Vec<&str> = tokens.iter().map(|t| t.symbol.as_str()).collect();
+
+        let chunk_size = CRYPTOCOMPARE_TOKENS_LIMIT;
+        let mut all_rates = HashMap::new();
+
+        for chunk in symbols.chunks(chunk_size) {
+            dbg!(chunk.len());
+            let rates = get_cryptocompare_prices(chunk).await.unwrap();
+            all_rates.extend(rates);
+        }
+
+        dbg!(&all_rates);
+
+        for symbol in &symbols {
+            assert!(
+                all_rates.contains_key(*symbol),
+                "Missing rate for {}",
+                symbol
+            );
+        }
     }
 }
