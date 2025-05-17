@@ -34,6 +34,8 @@ pub struct Token {
     pub decimals: u8,
     pub listed: bool,
     pub status: TokenStatus,
+    pub rate: f64,
+    pub price_changed: i64,
 }
 
 pub type Result<T> = std::result::Result<T, TokenQuotesError>;
@@ -75,6 +77,8 @@ pub async fn pancakeswap_get_tokens() -> Result<Vec<Token>> {
             token_type: TokenType::FT,
             listed: true,
             status: TokenStatus::Available,
+            rate: 0.0,
+            price_changed: 0,
         })
         .collect();
 
@@ -118,6 +122,8 @@ pub async fn coingecko_get_tokens(chain_name: &str) -> Result<Vec<Token>> {
             token_type: TokenType::FT,
             listed: true,
             status: TokenStatus::Available,
+            rate: 0.0,
+            price_changed: 0,
         })
         .collect();
 

@@ -18,6 +18,21 @@ pub enum MetalsApiError {
     EnvVar(String),
 }
 
+pub async fn get_cryptocompare_prices(
+    fsyms: &[&str],
+) -> Result<HashMap<String, f64>, MetalsApiError> {
+    let fsyms_str = fsyms.join(",");
+    let url = format!(
+        "https://min-api.cryptocompare.com/data/pricemulti?fsyms={}&tsyms={}",
+        fsyms_str, BASE_CURRENCY
+    );
+    let client = Client::new();
+    let response = client.get(&url).send().await?;
+    let body: Value = response.json().await?;
+
+    parse_crypto_response(body)
+}
+
 pub async fn get_metals_prices() -> Result<HashMap<String, f64>, MetalsApiError> {
     let api_key = env::var("METALS_API_KEY")
         .map_err(|_| MetalsApiError::EnvVar("METALS_API_KEY not set".to_string()))?;
@@ -29,6 +44,25 @@ pub async fn get_metals_prices() -> Result<HashMap<String, f64>, MetalsApiError>
     let response = client.get(&url).send().await?;
     let body: Value = response.json().await?;
     parse_metals_response(body)
+}
+
+fn parse_crypto_response(body: Value) -> Result<HashMap<String, f64>, MetalsApiError> {
+    if body.get("Response") == Some(&Value::String("Error".to_string())) {
+        let message = body
+            .get("Message")
+            .and_then(|m| m.as_str())
+            .unwrap_or("Unknown error");
+        return Err(MetalsApiError::ApiError(message.to_string()));
+    }
+    let mut result = HashMap::new();
+    if let Some(obj) = body.as_object() {
+        for (key, value) in obj {
+            if let Some(price) = value.get(BASE_CURRENCY).and_then(|v| v.as_f64()) {
+                result.insert(key.clone(), price);
+            }
+        }
+    }
+    Ok(result)
 }
 
 fn parse_metals_response(body: Value) -> Result<HashMap<String, f64>, MetalsApiError> {
@@ -194,6 +228,42 @@ mod tests {
             assert_eq!(msg, "Unknown API error");
         } else {
             panic!("Expected ApiError error");
+        }
+    }
+
+    #[test]
+    fn test_parse_crypto_response() {
+        let mut eth_map = serde_json::Map::new();
+
+        eth_map.insert(BASE_CURRENCY.to_string(), json!(0.02406));
+        let eth = Value::Object(eth_map);
+
+        let mut zil_map = serde_json::Map::new();
+        zil_map.insert(BASE_CURRENCY.to_string(), json!(1.3e-7));
+        let zil = Value::Object(zil_map);
+
+        let mut eko_map = serde_json::Map::new();
+        eko_map.insert(BASE_CURRENCY.to_string(), json!(1.3e-7));
+        let eko = Value::Object(eko_map);
+
+        let mut mock_map = serde_json::Map::new();
+        mock_map.insert("ETH".to_string(), eth);
+        mock_map.insert("ZIL".to_string(), zil);
+        mock_map.insert("EKO".to_string(), eko);
+        let mock = Value::Object(mock_map);
+
+        let res = parse_crypto_response(mock).unwrap();
+        assert_eq!(res.get("ETH"), Some(&0.02406));
+        assert_eq!(res.get("ZIL"), Some(&1.3e-7));
+        assert_eq!(res.get("EKO"), Some(&1.3e-7));
+    }
+
+    #[tokio::test]
+    async fn test_cryptocompare() {
+        let tokens = ["BNB", "ETH", "USDT", "USDC", "JPY", "RUB", "EKO"];
+        let result = get_cryptocompare_prices(&tokens).await.unwrap();
+        for token in tokens {
+            assert!(result.contains_key(token), "Expected key {}", token);
         }
     }
 }
