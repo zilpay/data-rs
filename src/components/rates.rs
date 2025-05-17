@@ -1,8 +1,10 @@
 use reqwest::Client;
-use serde_json::{Map, Value};
+use serde_json::Value;
 use std::collections::HashMap;
 use std::env;
 use thiserror::Error;
+
+use crate::config::rates::BASE_CURRENCY;
 
 #[derive(Error, Debug)]
 pub enum MetalsApiError {
@@ -20,8 +22,8 @@ pub async fn get_metals_prices() -> Result<HashMap<String, f64>, MetalsApiError>
     let api_key = env::var("METALS_API_KEY")
         .map_err(|_| MetalsApiError::EnvVar("METALS_API_KEY not set".to_string()))?;
     let url = format!(
-        "https://api.metals.dev/v1/latest?api_key={}¤cy=AED&unit=g",
-        api_key
+        "https://api.metals.dev/v1/latest?api_key={}&currency={}&unit=g",
+        api_key, BASE_CURRENCY,
     );
     let client = Client::new();
     let response = client.get(&url).send().await?;
@@ -29,7 +31,7 @@ pub async fn get_metals_prices() -> Result<HashMap<String, f64>, MetalsApiError>
     parse_metals_response(body)
 }
 
-pub fn parse_metals_response(body: Value) -> Result<HashMap<String, f64>, MetalsApiError> {
+fn parse_metals_response(body: Value) -> Result<HashMap<String, f64>, MetalsApiError> {
     if body["status"].as_str() == Some("failure") {
         let error_message = body["error_message"]
             .as_str()
@@ -194,10 +196,4 @@ mod tests {
             panic!("Expected ApiError error");
         }
     }
-
-    // #[tokio::test]
-    // async fn test_get_metals_prices() {
-    //     let res = get_metals_prices().await.unwrap();
-    //     dbg!(res);
-    // }
 }
