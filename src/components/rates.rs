@@ -4,23 +4,53 @@ use std::collections::HashMap;
 use std::env;
 use thiserror::Error;
 
-use crate::config::rates::BASE_CURRENCY;
+use crate::config::rates::{API_URL_COINGECKO, BASE_CURRENCY};
 
 #[derive(Error, Debug)]
-pub enum MetalsApiError {
+pub enum RatesApiError {
     #[error("HTTP request failed: {0}")]
     Reqwest(#[from] reqwest::Error),
+
     #[error("Invalid API key: {0}")]
     InvalidApiKey(String),
+
     #[error("API error: {0}")]
     ApiError(String),
+
     #[error("Missing environment variable: {0}")]
     EnvVar(String),
+
+    #[error("Parse Json response: {0}, response: {1}")]
+    ParseResponseError(String, String),
+}
+
+pub async fn get_coingecko_prices(symbols: &[&str]) -> Result<HashMap<String, f64>, RatesApiError> {
+    // here is not symbols it should be coingecko id.
+    let url = build_url(symbols, &[BASE_CURRENCY]);
+    let json_value: Value = {
+        let client = Client::builder()
+            .timeout(std::time::Duration::from_secs(15))
+            .build()
+            .map_err(|e| RatesApiError::Reqwest(e))?;
+        let response = client
+            .get(&url)
+            .send()
+            .await
+            .map_err(|e| RatesApiError::Reqwest(e))?
+            .text()
+            .await
+            .map_err(|e| RatesApiError::Reqwest(e))?;
+
+        serde_json::from_str(&response)
+            .map_err(|e| RatesApiError::ParseResponseError(e.to_string(), response.to_string()))?
+    };
+
+    Ok(Default::default())
 }
 
 pub async fn get_cryptocompare_prices(
     fsyms: &[&str],
-) -> Result<HashMap<String, f64>, MetalsApiError> {
+) -> Result<HashMap<String, f64>, RatesApiError> {
     let fsyms_str = fsyms.join(",");
     let url = format!(
         "https://min-api.cryptocompare.com/data/pricemulti?fsyms={}&tsyms={}",
@@ -33,9 +63,9 @@ pub async fn get_cryptocompare_prices(
     parse_crypto_response(body)
 }
 
-pub async fn get_metals_prices() -> Result<HashMap<String, f64>, MetalsApiError> {
+pub async fn get_metals_prices() -> Result<HashMap<String, f64>, RatesApiError> {
     let api_key = env::var("METALS_API_KEY")
-        .map_err(|_| MetalsApiError::EnvVar("METALS_API_KEY not set".to_string()))?;
+        .map_err(|_| RatesApiError::EnvVar("METALS_API_KEY not set".to_string()))?;
     let url = format!(
         "https://api.metals.dev/v1/latest?api_key={}&currency={}&unit=g",
         api_key, BASE_CURRENCY,
@@ -46,13 +76,13 @@ pub async fn get_metals_prices() -> Result<HashMap<String, f64>, MetalsApiError>
     parse_metals_response(body)
 }
 
-fn parse_crypto_response(body: Value) -> Result<HashMap<String, f64>, MetalsApiError> {
+fn parse_crypto_response(body: Value) -> Result<HashMap<String, f64>, RatesApiError> {
     if body.get("Response") == Some(&Value::String("Error".to_string())) {
         let message = body
             .get("Message")
             .and_then(|m| m.as_str())
             .unwrap_or("Unknown error");
-        return Err(MetalsApiError::ApiError(message.to_string()));
+        return Err(RatesApiError::ApiError(message.to_string()));
     }
     let mut result = HashMap::new();
     if let Some(obj) = body.as_object() {
@@ -65,16 +95,16 @@ fn parse_crypto_response(body: Value) -> Result<HashMap<String, f64>, MetalsApiE
     Ok(result)
 }
 
-fn parse_metals_response(body: Value) -> Result<HashMap<String, f64>, MetalsApiError> {
+fn parse_metals_response(body: Value) -> Result<HashMap<String, f64>, RatesApiError> {
     if body["status"].as_str() == Some("failure") {
         let error_message = body["error_message"]
             .as_str()
             .unwrap_or("Unknown error")
             .to_string();
         return Err(if body["error_code"].as_i64() == Some(1101) {
-            MetalsApiError::InvalidApiKey(error_message)
+            RatesApiError::InvalidApiKey(error_message)
         } else {
-            MetalsApiError::ApiError(error_message)
+            RatesApiError::ApiError(error_message)
         });
     }
 
@@ -115,6 +145,15 @@ fn parse_metals_response(body: Value) -> Result<HashMap<String, f64>, MetalsApiE
     }
 
     Ok(result)
+}
+
+fn build_url(ids: &[&str], vs_currencies: &[&str]) -> String {
+    let ids_joined = ids.join(",");
+    let vs_currencies_joined = vs_currencies.join(",");
+    format!(
+        "{}?ids={}&vs_currencies={}",
+        API_URL_COINGECKO, ids_joined, vs_currencies_joined
+    )
 }
 
 #[cfg(test)]
@@ -207,7 +246,7 @@ mod tests {
 
         let res = parse_metals_response(mock);
         assert!(res.is_err());
-        if let Err(MetalsApiError::InvalidApiKey(msg)) = res {
+        if let Err(RatesApiError::InvalidApiKey(msg)) = res {
             assert_eq!(msg, "Unauthorized. The API Key provided is invalid.");
         } else {
             panic!("Expected InvalidApiKey error");
@@ -224,7 +263,7 @@ mod tests {
 
         let res = parse_metals_response(mock);
         assert!(res.is_err());
-        if let Err(MetalsApiError::ApiError(msg)) = res {
+        if let Err(RatesApiError::ApiError(msg)) = res {
             assert_eq!(msg, "Unknown API error");
         } else {
             panic!("Expected ApiError error");
@@ -266,4 +305,13 @@ mod tests {
             assert!(result.contains_key(token), "Expected key {}", token);
         }
     }
+
+    // #[tokio::test]
+    // async fn test_coingecko_rates() {
+    //     let tokens = ["BNB", "ETH", "USDT", "USDC", "JPY", "RUB", "EKO"];
+    //     let result = get_coingecko_prices(&tokens).await.unwrap();
+    //     // for token in tokens {
+    //     //     assert!(result.contains_key(token), "Expected key {}", token);
+    //     // }
+    // }
 }
