@@ -6,21 +6,26 @@ edition = "2021"
 [dependencies]
 hex = "0.4.3"
 log = "0.4.22"
-reqwest = { version = "0.12.15", features = ["rustls-tls", "json", "gzip", "brotli"], default-features = false }
+reqwest = { version = "0.12.15", features = ["json", "rustls-tls", "gzip", "brotli"], default-features = false } # Ensure json and rustls-tls are enabled
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.128"
 simple_logger = "5.0"
 sled = "0.34.7"
-tokio = { version = "1.39.2", features = ["macros", "rt-multi-thread"], default-features = false }
+tokio = { version = "1.39.2", features = ["macros", "rt-multi-thread", "time"], default-features = false } # Added "time" feature
 hyper = { version = "1.4", features = ["http1", "http2", "server"], default-features = false }
 http-body-util = "0.1.2"
 bytes = "1.7"
 url = "2.5"
 sha2 = "0.10"
 hyper-util = { version = "0.1.10", features = ["http1", "http2", "server", "tokio"] }
-alloy = { version = "1.0.3", features = ["k256", "dyn-abi", "json-abi", "rpc-types", "network", "providers", "reqwest"], default-features = false }
-thiserror = "2.0.12"
+thiserror = "1.0.56" # Pinned to an older 1.x version for MSRV stability
+
+num-bigint = "0.4" # Added for BigUint calculations
+
+# Removed ethers-rs and alloy-rs dependencies
+# Removed k256 as it was for alloy
+# Removed ICU pins as they were for alloy/ethers
 
 [dev-dependencies]
 mockito = "1.5.0"
-
+tempfile = "3" # Added for DB tests

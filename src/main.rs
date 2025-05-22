@@ -2,6 +2,7 @@ use data_rs::{
     models::{currencies::Currencies, dex::Dex, meta::Meta},
     server::run_server,
     utils::zilliqa::Zilliqa,
+    workers::uniswap_quoter::run_uniswap_quoter_worker, // Added this import
 };
 use log::{error, LevelFilter};
 use simple_logger::SimpleLogger;
@@ -107,6 +108,10 @@ async fn main() {
     let meta_ref0 = Arc::clone(&meta);
     let dex_ref0 = Arc::clone(&dex);
     let rates_ref0 = Arc::clone(&rates);
+
+    tokio::task::spawn(async move {
+        run_uniswap_quoter_worker().await;
+    });
 
     run_server(&meta_ref0, &dex_ref0, &rates_ref0, port)
         .await
