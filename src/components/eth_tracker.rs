@@ -64,7 +64,9 @@ impl EthTracker {
 
     pub async fn update_tokens_from_coingecko(&self) -> Result<(), EthTrackerError> {
         let mut current_tokens = self.get_tokens()?;
-        let new_tokens = coingecko_get_tokens("ethereum").await?;
+        let mut new_tokens = coingecko_get_tokens("ethereum").await?;
+
+        new_tokens.truncate(1500);
 
         for new_token in new_tokens {
             if !current_tokens
@@ -147,11 +149,9 @@ mod tests {
     // #[tokio::test]
     // async fn test_real_tokens() {
     //     let tracker = setup_tracker();
-    //     let tokens = tracker.get_tokens().unwrap();
-    //     assert!(tokens.is_empty());
-
     //     tracker.update_tokens_from_coingecko().await.unwrap();
+    //     let tokens = tracker.get_tokens().unwrap();
 
-    //     dbg!(&tokens);
+    //     dbg!(&tokens.len());
     // }
 }
