@@ -1,3 +1,5 @@
+use std::fs;
+
 use super::{
     tokens::{coingecko_get_tokens, Token},
     uniswap::get_token_prices_in_eth,
@@ -30,7 +32,11 @@ pub struct EthTracker {
 
 impl EthTracker {
     pub fn new(db_path: &str) -> Result<Self, EthTrackerError> {
-        let db = sled::open(format!("{}/eth_tracker_db", db_path))?;
+        let db_full_path = format!("{}/eth_tracker_db", db_path);
+
+        fs::create_dir_all(db_path).unwrap_or_default();
+
+        let db = sled::open(&db_full_path)?;
         let bincode_config = config::standard();
         Ok(EthTracker { db, bincode_config })
     }
@@ -49,14 +55,17 @@ impl EthTracker {
     pub fn save_tokens(&self, tokens: Vec<Token>) -> Result<(), EthTrackerError> {
         let bytes = bincode::encode_to_vec(tokens, self.bincode_config)
             .map_err(|e| EthTrackerError::Bincode(e.to_string()))?;
+
         self.db.insert(ETH_STORAGE_KEY, bytes)?;
         self.db.flush()?;
+
         Ok(())
     }
 
     pub async fn update_tokens_from_coingecko(&self) -> Result<(), EthTrackerError> {
         let mut current_tokens = self.get_tokens()?;
         let new_tokens = coingecko_get_tokens("ethereum").await?;
+
         for new_token in new_tokens {
             if !current_tokens
                 .iter()
@@ -65,6 +74,7 @@ impl EthTracker {
                 current_tokens.push(new_token);
             }
         }
+
         self.save_tokens(current_tokens)?;
         Ok(())
     }
@@ -102,6 +112,7 @@ mod tests {
     fn setup_tracker() -> EthTracker {
         let temp_dir = tempdir().unwrap();
         let db_path = temp_dir.path().to_str().unwrap();
+
         EthTracker::new(db_path).unwrap()
     }
 
@@ -132,4 +143,15 @@ mod tests {
         let tokens = tracker.get_tokens().unwrap();
         assert!(tokens.is_empty());
     }
+
+    // #[tokio::test]
+    // async fn test_real_tokens() {
+    //     let tracker = setup_tracker();
+    //     let tokens = tracker.get_tokens().unwrap();
+    //     assert!(tokens.is_empty());
+
+    //     tracker.update_tokens_from_coingecko().await.unwrap();
+
+    //     dbg!(&tokens);
+    // }
 }
