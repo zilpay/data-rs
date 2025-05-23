@@ -1,5 +1,5 @@
+use bincode::{Decode, Encode};
 use reqwest::Client;
-use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use thiserror::Error;
 
@@ -12,19 +12,19 @@ pub enum TokenQuotesError {
     ParseResponseError(String, String),
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Decode, Encode, Clone)]
 pub enum TokenType {
     FT,
     NFT,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Decode, Encode, Clone)]
 pub enum TokenStatus {
     Available,
     Buned,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Decode, Encode, Clone)]
 pub struct Token {
     pub address: String,
     pub scope: u64,

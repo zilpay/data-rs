@@ -87,10 +87,7 @@ async fn send_batch_request(
     ))
 }
 
-pub async fn get_token_prices_in_eth(
-    tokens: &mut [Token],
-    urls: &[&str],
-) -> Result<(), UniswapDexError> {
+pub async fn get_token_prices_in_eth(tokens: &mut [Token]) -> Result<(), UniswapDexError> {
     let client = Client::builder().timeout(Duration::from_secs(10)).build()?;
 
     let mut batch_requests = Vec::with_capacity(tokens.len());
@@ -104,7 +101,7 @@ pub async fn get_token_prices_in_eth(
         batch_requests.push(request);
     }
 
-    let responses = send_batch_request(&client, urls, &batch_requests).await?;
+    let responses = send_batch_request(&client, &URLS, &batch_requests).await?;
 
     let mut pair_addresses = vec![Address::ZERO; tokens.len()];
     for resp in responses {
@@ -144,7 +141,7 @@ pub async fn get_token_prices_in_eth(
         }
     }
 
-    let responses_2 = send_batch_request(&client, urls, &batch_requests_2).await?;
+    let responses_2 = send_batch_request(&client, &URLS, &batch_requests_2).await?;
 
     let mut reserves = vec![None; tokens.len()];
     let mut token0s = vec![None; tokens.len()];
@@ -249,13 +246,9 @@ mod tests {
             },
         ];
 
-        let urls = URLS.to_vec();
-
-        get_token_prices_in_eth(&mut tokens, &urls)
+        get_token_prices_in_eth(&mut tokens)
             .await
             .expect("Failed to fetch token prices");
-
-        dbg!(&tokens);
 
         assert!(tokens[0].rate > 0.0, "DAI price should be positive");
         assert!(tokens[1].rate > 0.0, "USDC price should be positive");
