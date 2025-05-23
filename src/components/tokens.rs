@@ -36,7 +36,7 @@ pub struct Token {
     pub status: TokenStatus,
     pub chain_id: u64,
     pub rate: f64,
-    pub price_changed: i64,
+    pub last_price: f64,
 }
 
 pub type Result<T> = std::result::Result<T, TokenQuotesError>;
@@ -80,7 +80,7 @@ pub async fn pancakeswap_get_tokens() -> Result<Vec<Token>> {
             listed: true,
             status: TokenStatus::Available,
             rate: 0.0,
-            price_changed: 0,
+            last_price: 0.0,
         })
         .collect();
 
@@ -126,7 +126,7 @@ pub async fn coingecko_get_tokens(chain_name: &str) -> Result<Vec<Token>> {
             listed: true,
             status: TokenStatus::Available,
             rate: 0.0,
-            price_changed: 0,
+            last_price: 0.0,
         })
         .collect();
 
@@ -135,11 +135,6 @@ pub async fn coingecko_get_tokens(chain_name: &str) -> Result<Vec<Token>> {
 
 #[cfg(test)]
 mod pancakeswap_get_tokens_tests {
-    use std::collections::HashMap;
-
-    use crate::{
-        components::rates::get_cryptocompare_prices, config::rates::CRYPTOCOMPARE_TOKENS_LIMIT,
-    };
 
     use super::*;
     use tokio;

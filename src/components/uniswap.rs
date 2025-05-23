@@ -76,20 +76,10 @@ async fn send_batch_request(
                         response.json().await.map_err(UniswapDexError::Reqwest)?;
                     if responses.iter().all(|r| r.get("result").is_some()) {
                         return Ok(responses);
-                    } else {
-                        eprintln!("Some requests failed on node {}: {:?}", url, responses);
                     }
-                } else {
-                    eprintln!(
-                        "Request to {} failed with status: {}",
-                        url,
-                        response.status()
-                    );
                 }
             }
-            Err(e) => {
-                eprintln!("Request to {} failed: {}", url, e);
-            }
+            Err(_e) => {}
         }
     }
     Err(UniswapDexError::ApiError(
@@ -199,7 +189,10 @@ pub async fn get_token_prices_in_eth(
                 let reserve_weth_eth = f64::from(reserve_weth) / 1e18;
                 let reserve_token_tokens =
                     f64::from(reserve_token) / 10f64.powi(tokens[i].decimals as i32);
-                tokens[i].rate = reserve_weth_eth / reserve_token_tokens;
+                let new_rate = reserve_weth_eth / reserve_token_tokens;
+
+                tokens[i].last_price = tokens[i].rate;
+                tokens[i].rate = new_rate;
             }
         }
     }
@@ -226,7 +219,7 @@ mod tests {
                 status: TokenStatus::Available,
                 chain_id: 1,
                 rate: 0.0,
-                price_changed: 0,
+                last_price: 0.0,
             },
             Token {
                 address: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48".to_string(), // USDC
@@ -239,7 +232,7 @@ mod tests {
                 status: TokenStatus::Available,
                 chain_id: 1,
                 rate: 0.0,
-                price_changed: 0,
+                last_price: 0.0,
             },
             Token {
                 address: "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599".to_string(), // USDC
@@ -252,7 +245,7 @@ mod tests {
                 status: TokenStatus::Available,
                 chain_id: 1,
                 rate: 0.0,
-                price_changed: 0,
+                last_price: 0.0,
             },
         ];
 
@@ -261,6 +254,8 @@ mod tests {
         get_token_prices_in_eth(&mut tokens, &urls)
             .await
             .expect("Failed to fetch token prices");
+
+        dbg!(&tokens);
 
         assert!(tokens[0].rate > 0.0, "DAI price should be positive");
         assert!(tokens[1].rate > 0.0, "USDC price should be positive");

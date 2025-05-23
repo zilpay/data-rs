@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::env;
 use thiserror::Error;
 
-use crate::config::rates::{API_URL_COINGECKO, BASE_CURRENCY};
+use crate::config::rates::BASE_CURRENCY;
 
 #[derive(Error, Debug)]
 pub enum RatesApiError {
@@ -22,30 +22,6 @@ pub enum RatesApiError {
 
     #[error("Parse Json response: {0}, response: {1}")]
     ParseResponseError(String, String),
-}
-
-pub async fn get_coingecko_prices(symbols: &[&str]) -> Result<HashMap<String, f64>, RatesApiError> {
-    // here is not symbols it should be coingecko id.
-    let url = build_url(symbols, &[BASE_CURRENCY]);
-    let json_value: Value = {
-        let client = Client::builder()
-            .timeout(std::time::Duration::from_secs(15))
-            .build()
-            .map_err(|e| RatesApiError::Reqwest(e))?;
-        let response = client
-            .get(&url)
-            .send()
-            .await
-            .map_err(|e| RatesApiError::Reqwest(e))?
-            .text()
-            .await
-            .map_err(|e| RatesApiError::Reqwest(e))?;
-
-        serde_json::from_str(&response)
-            .map_err(|e| RatesApiError::ParseResponseError(e.to_string(), response.to_string()))?
-    };
-
-    Ok(Default::default())
 }
 
 pub async fn get_cryptocompare_prices(
@@ -145,15 +121,6 @@ fn parse_metals_response(body: Value) -> Result<HashMap<String, f64>, RatesApiEr
     }
 
     Ok(result)
-}
-
-fn build_url(ids: &[&str], vs_currencies: &[&str]) -> String {
-    let ids_joined = ids.join(",");
-    let vs_currencies_joined = vs_currencies.join(",");
-    format!(
-        "{}?ids={}&vs_currencies={}",
-        API_URL_COINGECKO, ids_joined, vs_currencies_joined
-    )
 }
 
 #[cfg(test)]
