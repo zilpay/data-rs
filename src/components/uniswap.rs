@@ -98,12 +98,12 @@ async fn send_batch_request(
 }
 
 pub async fn get_token_prices_in_eth(
-    tokens: &[Token],
+    tokens: &mut [Token],
     urls: &[&str],
-) -> Result<Vec<f64>, UniswapDexError> {
+) -> Result<(), UniswapDexError> {
     let client = Client::builder().timeout(Duration::from_secs(10)).build()?;
 
-    let mut batch_requests = Vec::new();
+    let mut batch_requests = Vec::with_capacity(tokens.len());
     for (i, token) in tokens.iter().enumerate() {
         let get_pair_call = IUniswapV2Factory::getPairCall {
             tokenA: token.address.parse().unwrap_or_default(),
@@ -114,8 +114,7 @@ pub async fn get_token_prices_in_eth(
         batch_requests.push(request);
     }
 
-    let responses: Vec<serde_json::Value> =
-        send_batch_request(&client, urls, &batch_requests).await?;
+    let responses = send_batch_request(&client, urls, &batch_requests).await?;
 
     let mut pair_addresses = vec![Address::ZERO; tokens.len()];
     for resp in responses {
@@ -134,8 +133,6 @@ pub async fn get_token_prices_in_eth(
                         })?;
                     pair_addresses[index] = decoded;
                 }
-            } else if let Some(error) = resp["error"].as_object() {
-                eprintln!("Error in getPair request {}: {:?}", id, error);
             }
         }
     }
@@ -157,8 +154,7 @@ pub async fn get_token_prices_in_eth(
         }
     }
 
-    let responses_2: Vec<serde_json::Value> =
-        send_batch_request(&client, urls, &batch_requests_2).await?;
+    let responses_2 = send_batch_request(&client, urls, &batch_requests_2).await?;
 
     let mut reserves = vec![None; tokens.len()];
     let mut token0s = vec![None; tokens.len()];
@@ -186,40 +182,29 @@ pub async fn get_token_prices_in_eth(
                         })?;
                     token0s[index] = Some(decoded);
                 }
-            } else if let Some(error) = resp["error"].as_object() {
-                eprintln!("Error in request {}: {:?}", id, error);
             }
         }
     }
 
-    let mut prices = vec![0.0; tokens.len()];
-    for (i, token) in tokens.iter().enumerate() {
+    for i in 0..tokens.len() {
         if let (Some((reserve0, reserve1)), Some(token0_address)) = (reserves[i], token0s[i]) {
-            let (reserve_token, reserve_weth) = if token.address == token0_address.to_string() {
+            let token_address = &tokens[i].address;
+            let (reserve_token, reserve_weth) = if token_address == &token0_address.to_string() {
                 (U256::from(reserve0), U256::from(reserve1))
             } else {
                 (U256::from(reserve1), U256::from(reserve0))
             };
+
             if reserve_token != U256::ZERO {
                 let reserve_weth_eth = f64::from(reserve_weth) / 1e18;
                 let reserve_token_tokens =
-                    f64::from(reserve_token) / 10f64.powi(token.decimals as i32);
-                prices[i] = reserve_weth_eth / reserve_token_tokens;
-            } else {
-                eprintln!(
-                    "Insufficient liquidity for token {} ({})",
-                    token.symbol, token.address
-                );
+                    f64::from(reserve_token) / 10f64.powi(tokens[i].decimals as i32);
+                tokens[i].rate = reserve_weth_eth / reserve_token_tokens;
             }
-        } else if pair_addresses[i] == Address::ZERO {
-            eprintln!(
-                "No pair found for token {} ({}) and WETH",
-                token.symbol, token.address
-            );
         }
     }
 
-    Ok(prices)
+    Ok(())
 }
 
 #[cfg(test)]
@@ -229,7 +214,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_token_prices_in_eth() {
-        let tokens = vec![
+        let mut tokens = vec![
             Token {
                 address: "0x6B175474E89094C44Da98b954EedeAC495271d0F".to_string(), // DAI
                 scope: 0,
@@ -272,13 +257,13 @@ mod tests {
         ];
 
         let urls = URLS.to_vec();
-        let prices = get_token_prices_in_eth(&tokens, &urls)
+
+        get_token_prices_in_eth(&mut tokens, &urls)
             .await
             .expect("Failed to fetch token prices");
 
-        assert_eq!(prices.len(), 3, "Expected prices for 2 tokens");
-        assert!(prices[0] > 0.0, "DAI price should be positive");
-        assert!(prices[1] > 0.0, "USDC price should be positive");
-        assert!(prices[2] > 0.0, "WBTC price should be positive");
+        assert!(tokens[0].rate > 0.0, "DAI price should be positive");
+        assert!(tokens[1].rate > 0.0, "USDC price should be positive");
+        assert!(tokens[2].rate > 0.0, "WBTC price should be positive");
     }
 }
