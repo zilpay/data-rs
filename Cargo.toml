@@ -18,8 +18,8 @@ bytes = "1.7"
 url = "2.5"
 sha2 = "0.10"
 hyper-util = { version = "0.1.10", features = ["http1", "http2", "server", "tokio"] }
-alloy = { version = "1.0.3", features = ["k256", "dyn-abi", "json-abi", "rpc-types", "network", "providers", "reqwest"], default-features = false }
 thiserror = "2.0.12"
+alloy = "1.0.6"
 
 [dev-dependencies]
 mockito = "1.5.0"

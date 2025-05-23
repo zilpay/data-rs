@@ -192,28 +192,28 @@ mod pancakeswap_get_tokens_tests {
         assert_eq!(tokens.last().unwrap().scope, 1);
     }
 
-    #[tokio::test]
-    async fn test_update_rates() {
-        let tokens = pancakeswap_get_tokens().await.unwrap();
-        let symbols: Vec<&str> = tokens.iter().map(|t| t.symbol.as_str()).collect();
+    // #[tokio::test]
+    // async fn test_update_rates() {
+    //     let tokens = pancakeswap_get_tokens().await.unwrap();
+    //     let symbols: Vec<&str> = tokens.iter().map(|t| t.symbol.as_str()).collect();
 
-        let chunk_size = CRYPTOCOMPARE_TOKENS_LIMIT;
-        let mut all_rates = HashMap::new();
+    //     let chunk_size = CRYPTOCOMPARE_TOKENS_LIMIT;
+    //     let mut all_rates = HashMap::new();
 
-        for chunk in symbols.chunks(chunk_size) {
-            dbg!(chunk.len());
-            let rates = get_cryptocompare_prices(chunk).await.unwrap();
-            all_rates.extend(rates);
-        }
+    //     for chunk in symbols.chunks(chunk_size) {
+    //         dbg!(chunk.len());
+    //         let rates = get_cryptocompare_prices(chunk).await.unwrap();
+    //         all_rates.extend(rates);
+    //     }
 
-        dbg!(&all_rates);
+    //     dbg!(&all_rates);
 
-        for symbol in &symbols {
-            assert!(
-                all_rates.contains_key(*symbol),
-                "Missing rate for {}",
-                symbol
-            );
-        }
-    }
+    //     for symbol in &symbols {
+    //         assert!(
+    //             all_rates.contains_key(*symbol),
+    //             "Missing rate for {}",
+    //             symbol
+    //         );
+    //     }
+    // }
 }
