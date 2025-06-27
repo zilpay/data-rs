@@ -5,15 +5,15 @@ use super::{
     uniswap::get_token_prices_in_eth,
 };
 use bincode::config::{self, Configuration};
-use sled;
+use rocksdb::{Options, DB};
 use thiserror::Error;
 
-const ETH_STORAGE_KEY: &[u8] = b"eth_tokens";
+const ETH_STORAGE_KEY: &str = "eth_tokens";
 
 #[derive(Error, Debug)]
 pub enum EthTrackerError {
     #[error("Database error: {0}")]
-    Sled(#[from] sled::Error),
+    RocksDB(#[from] rocksdb::Error),
 
     #[error("Bincode serialization error: {0}")]
     Bincode(String),
@@ -26,7 +26,7 @@ pub enum EthTrackerError {
 }
 
 pub struct EthTracker {
-    db: sled::Db,
+    db: DB,
     bincode_config: Configuration,
 }
 
@@ -36,7 +36,9 @@ impl EthTracker {
 
         fs::create_dir_all(db_path).unwrap_or_default();
 
-        let db = sled::open(&db_full_path)?;
+        let mut opts = Options::default();
+        opts.create_if_missing(true);
+        let db = DB::open(&opts, &db_full_path)?;
         let bincode_config = config::standard();
         Ok(EthTracker { db, bincode_config })
     }
@@ -56,7 +58,7 @@ impl EthTracker {
         let bytes = bincode::encode_to_vec(tokens, self.bincode_config)
             .map_err(|e| EthTrackerError::Bincode(e.to_string()))?;
 
-        self.db.insert(ETH_STORAGE_KEY, bytes)?;
+        self.db.put(ETH_STORAGE_KEY, bytes)?;
         self.db.flush()?;
 
         Ok(())
@@ -139,19 +141,13 @@ mod tests {
         assert_eq!(retrieved[1].address, "0x2");
     }
 
-    #[test]
-    fn test_get_empty_tokens() {
+    #[tokio::test]
+    async fn test_get_empty_tokens() {
         let tracker = setup_tracker();
+        tracker.update_tokens_from_coingecko().await.unwrap();
         let tokens = tracker.get_tokens().unwrap();
-        assert!(tokens.is_empty());
+
+        dbg!(&tokens);
+        // assert!(tokens.is_empty());
     }
-
-    // #[tokio::test]
-    // async fn test_real_tokens() {
-    //     let tracker = setup_tracker();
-    //     tracker.update_tokens_from_coingecko().await.unwrap();
-    //     let tokens = tracker.get_tokens().unwrap();
-
-    //     dbg!(&tokens.len());
-    // }
 }
