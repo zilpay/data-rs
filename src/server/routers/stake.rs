@@ -38,7 +38,7 @@ struct EvmPoolV2<'a> {
     name: &'a str,
 }
 
-const MAINNET_POOLS: [EvmPool; 11] = [
+const MAINNET_POOLS: [EvmPool; 10] = [
     EvmPool {
         address: "0x1f0e86Bc299Cc66df2e5512a7786C3F528C0b5b6",
         token_address: "0x8a2afD8Fe79F8C694210eB71f4d726Fc8cAFdB31",
@@ -86,14 +86,6 @@ const MAINNET_POOLS: [EvmPool; 11] = [
         pool_type: StakingPoolType::NORMAL,
         token_decimals: 18,
         token_symbol: "ZIL",
-    },
-    EvmPool {
-        address: "0xBB2Cb8B573Ec1ec4f77953128df7F1d08D9c34DF",
-        token_address: "0x9e4E0F7A06E50DA13c78cF8C83E907f792DE54fd",
-        name: "TorchWallet.io",
-        pool_type: StakingPoolType::LIQUID,
-        token_decimals: 18,
-        token_symbol: "tZIL",
     },
     EvmPool {
         address: "0xBD6ca237f30A86eea8CF9bF869677F3a0496a990",
