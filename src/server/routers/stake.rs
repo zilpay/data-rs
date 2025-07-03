@@ -38,7 +38,7 @@ struct EvmPoolV2<'a> {
     name: &'a str,
 }
 
-const MAINNET_POOLS: [EvmPool; 12] = [
+const MAINNET_POOLS: [EvmPool; 11] = [
     EvmPool {
         address: "0x1f0e86Bc299Cc66df2e5512a7786C3F528C0b5b6",
         token_address: "0x8a2afD8Fe79F8C694210eB71f4d726Fc8cAFdB31",
@@ -46,14 +46,6 @@ const MAINNET_POOLS: [EvmPool; 12] = [
         pool_type: StakingPoolType::LIQUID,
         token_decimals: 18,
         token_symbol: "aZIL",
-    },
-    EvmPool {
-        address: "0x691682FCa60Fa6B702a0a69F60d045c08f404220",
-        token_address: "0xc85b0db68467dede96A7087F4d4C47731555cA7A",
-        name: "PlunderSwap",
-        pool_type: StakingPoolType::LIQUID,
-        token_decimals: 18,
-        token_symbol: "pZIL",
     },
     EvmPool {
         address: "0x1311059DD836D7000Dc673eA4Cc834fe04e9933C",
